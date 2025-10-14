@@ -1,0 +1,22 @@
+R_DEF: Internal format may change without notice
+local
+id btnGenerateQR
+id btnStartScan
+id btnStopAttendance
+id btnStopScan
+id btnStudent
+id btnTeacher
+id ivQRCode
+id previewView
+id progressBar
+id rb10min
+id rb15min
+id rb30min
+id rb5min
+id rgDuration
+id tvCountdown
+id tvStatus
+id tvTitle
+layout activity_main
+layout activity_student
+layout activity_teacher

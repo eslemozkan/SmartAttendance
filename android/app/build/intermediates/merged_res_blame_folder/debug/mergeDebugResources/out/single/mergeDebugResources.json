@@ -1,0 +1,14 @@
+[
+    {
+        "merged": "com.smartattendance.app-debug-43:/layout_activity_teacher.xml.flat",
+        "source": "com.smartattendance.app-main-45:/layout/activity_teacher.xml"
+    },
+    {
+        "merged": "com.smartattendance.app-debug-43:/layout_activity_student.xml.flat",
+        "source": "com.smartattendance.app-main-45:/layout/activity_student.xml"
+    },
+    {
+        "merged": "com.smartattendance.app-debug-43:/layout_activity_main.xml.flat",
+        "source": "com.smartattendance.app-main-45:/layout/activity_main.xml"
+    }
+]
