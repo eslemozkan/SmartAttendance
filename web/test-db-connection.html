@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase DB Connection Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card { border: 1px solid #ddd; padding: 20px; margin: 20px 0; border-radius: 8px; }
+        input, button { padding: 10px; margin: 5px; }
+        input[type="text"] { width: 400px; }
+        pre { background: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Supabase Database Connection Test</h1>
+        <p>Test direct database connection without Edge Functions</p>
+
+        <div class="card">
+            <h2>Configuration</h2>
+            <label>Supabase URL:</label><br>
+            <input type="text" id="supabaseUrl" value="https://oubvhffqbsxsnbtinzbl.supabase.co" placeholder="https://your-project.supabase.co"><br>
+            
+            <label>Anon Key:</label><br>
+            <input type="text" id="anonKey" placeholder="eyJhbGciOiJIUzI1NiI..."><br>
+            
+            <button onclick="testConnection()">Test Database Connection</button>
+            <button onclick="testTables()">Test Tables</button>
+        </div>
+
+        <div class="card">
+            <h2>Results</h2>
+            <div id="status"></div>
+            <pre id="output"></pre>
+        </div>
+    </div>
+
+    <script>
+        async function testConnection() {
+            const url = document.getElementById('supabaseUrl').value;
+            const anonKey = document.getElementById('anonKey').value;
+            
+            if (!url || !anonKey) {
+                showResult('Please enter both URL and Anon Key', false);
+                return;
+            }
+
+            showResult('Testing connection...', true);
+
+            try {
+                // Test basic connection by querying a simple table
+                const response = await fetch(`${url}/rest/v1/profiles?select=*&limit=1`, {
+                    method: 'GET',
+                    headers: {
+                        'apikey': anonKey,
+                        'Authorization': `Bearer ${anonKey}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.text();
+                
+                if (response.ok) {
+                    showResult(`✅ Connection successful! Status: ${response.status}`, true);
+                    document.getElementById('output').textContent = `Response: ${data}`;
+                } else {
+                    showResult(`❌ Connection failed! Status: ${response.status}`, false);
+                    document.getElementById('output').textContent = `Error: ${data}`;
+                }
+            } catch (error) {
+                showResult(`❌ Error: ${error.message}`, false);
+                document.getElementById('output').textContent = error.toString();
+            }
+        }
+
+        async function testTables() {
+            const url = document.getElementById('supabaseUrl').value;
+            const anonKey = document.getElementById('anonKey').value;
+            
+            if (!url || !anonKey) {
+                showResult('Please enter both URL and Anon Key', false);
+                return;
+            }
+
+            showResult('Testing tables...', true);
+
+            const tables = ['profiles', 'courses', 'enrollments', 'course_weeks', 'qr_codes', 'attendances'];
+            const results = {};
+
+            for (const table of tables) {
+                try {
+                    const response = await fetch(`${url}/rest/v1/${table}?select=*&limit=1`, {
+                        method: 'GET',
+                        headers: {
+                            'apikey': anonKey,
+                            'Authorization': `Bearer ${anonKey}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    results[table] = {
+                        status: response.status,
+                        ok: response.ok,
+                        data: await response.text()
+                    };
+                } catch (error) {
+                    results[table] = {
+                        status: 'error',
+                        ok: false,
+                        error: error.message
+                    };
+                }
+            }
+
+            showResult('Table test completed', true);
+            document.getElementById('output').textContent = JSON.stringify(results, null, 2);
+        }
+
+        function showResult(message, success) {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = success ? 'success' : 'error';
+        }
+    </script>
+</body>
+</html>
+

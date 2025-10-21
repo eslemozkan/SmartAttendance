@@ -1,30 +1,50 @@
-// deno-lint-ignore-file no-explicit-any
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+// Deno Deploy/Edge Function: Validate QR and insert attendance
+// Request: { course_id: number, week_number: number, created_at: string, expire_after: number, student_id: string }
+// Response: { ok: true }
+
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.5";
 
 type ValidateQrInput = {
-  assignment_id: number;
-  created_at: string; // ISO
-  expire_after: number; // minutes
-  student_id: string;
+  course_id?: number;
+  week_number?: number;
+  created_at?: string;
+  expire_after?: number;
+  student_id?: string;
 };
 
-function jsonResponse(status: number, body: unknown) {
+function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json" },
+    headers: { 
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS"
+    },
   });
 }
 
 function isExpired(createdAtIso: string, expireAfterMinutes: number): boolean {
   const createdAtMs = Date.parse(createdAtIso);
-  if (Number.isNaN(createdAtMs)) return true;
+  if (!Number.isFinite(createdAtMs)) return true;
   const now = Date.now();
   const expireMs = expireAfterMinutes * 60 * 1000;
   return now - createdAtMs > expireMs;
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
+  // CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+      },
+    });
+  }
+  
   if (req.method !== "POST") {
     return jsonResponse(405, { error: "Method not allowed" });
   }
@@ -42,53 +62,46 @@ serve(async (req) => {
     return jsonResponse(400, { error: "Invalid JSON" });
   }
 
-  const { assignment_id, created_at, expire_after, student_id } = input ?? {} as ValidateQrInput;
-  if (!assignment_id || !created_at || !expire_after || !student_id) {
-    return jsonResponse(400, { error: "assignment_id, created_at, expire_after, student_id required" });
+  const { course_id, week_number, created_at, expire_after, student_id } = input ?? {} as ValidateQrInput;
+  if (!course_id || !week_number || !created_at || !expire_after || !student_id) {
+    return jsonResponse(400, { error: "course_id, week_number, created_at, expire_after, student_id required" });
   }
 
   if (isExpired(created_at, expire_after)) {
     return jsonResponse(410, { error: "Bu yoklamanın süresi dolmuş" });
   }
 
-  const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
-    auth: { persistSession: false },
-  });
+  const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, { auth: { persistSession: false } });
 
-  // Optional: check that such a QR was issued (by matching assignment + created_at window)
-  const { data: issued } = await supabase
+  // check that such an active QR exists for this course/week and is recent
+  const { data: qr, error: qrErr } = await supabase
     .from("qr_codes")
     .select("id, created_at, expire_after_minutes, is_active")
-    .eq("assignment_id", assignment_id)
-    .gte("created_at", new Date(Date.parse(created_at) - 5 * 60 * 1000).toISOString())
+    .eq("course_id", course_id)
+    .eq("week_number", week_number)
+    .eq("is_active", true)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  if (!issued || issued.is_active === false) {
+  if (qrErr) {
+    return jsonResponse(500, { error: qrErr.message });
+  }
+  if (!qr || qr.is_active === false) {
     return jsonResponse(404, { error: "QR bulunamadı veya pasif" });
   }
 
-  // Insert attendance record; you should adapt table/columns to your schema
+  // insert attendance (unique constraint in DB prevents duplicate per student per week)
   const { error: attErr } = await supabase
     .from("attendances")
-    .insert({
-      assignment_id,
-      student_id,
-      marked_at: new Date().toISOString(),
-      method: "qr",
-    });
+    .insert({ course_id, week_number, student_id, qr_code_id: qr.id, method: "qr" });
 
   if (attErr) {
-    // If duplicate attendance constraint exists, surface a friendly message
-    const msg = attErr.message?.toLowerCase?.() ?? "";
-    if (msg.includes("duplicate") || msg.includes("unique")) {
+    if ((attErr as any).code === "23505") {
       return jsonResponse(409, { error: "Bu öğrenci için zaten yoklama alınmış" });
     }
-    return jsonResponse(500, { error: "Attendance insert failed", details: attErr.message });
+    return jsonResponse(500, { error: attErr.message });
   }
 
   return jsonResponse(200, { ok: true });
 });
-
-

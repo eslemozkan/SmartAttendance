@@ -1,114 +1,261 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp">
+    android:background="@color/academic_background">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:padding="16dp">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Teacher Dashboard"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="24dp"/>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Select Duration:"
-            android:textSize="16sp"
-            android:layout_marginBottom="12dp"/>
-
-        <RadioGroup
-            android:id="@+id/rgDuration"
+        <!-- Header -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="24dp">
+            android:orientation="vertical"
+            android:background="@drawable/card_academic"
+            android:padding="20dp"
+            android:layout_marginBottom="16dp">
 
-            <RadioButton
-                android:id="@+id/rb5min"
+            <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="5 minutes"
-                android:checked="false"/>
+                android:text="Akademik Personel Paneli"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="@color/academic_primary"
+                android:layout_marginBottom="8dp"/>
 
-            <RadioButton
-                android:id="@+id/rb10min"
+            <TextView
+                android:id="@+id/tvWelcome"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="10 minutes"
-                android:checked="false"/>
+                android:text="Hoş geldiniz, Admin"
+                android:textSize="16sp"
+                android:textColor="@color/academic_text_secondary"/>
 
-            <RadioButton
-                android:id="@+id/rb15min"
+        </LinearLayout>
+
+        <!-- Course Selection -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/card_academic"
+            android:padding="20dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="15 minutes"
-                android:checked="true"/>
+                android:text="Ders Seçimi"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/academic_primary"
+                android:layout_marginBottom="12dp"/>
 
-            <RadioButton
-                android:id="@+id/rb30min"
+            <Spinner
+                android:id="@+id/spinnerCourse"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginBottom="12dp"
+                android:background="@drawable/spinner_academic"/>
+
+            <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="30 minutes"
-                android:checked="false"/>
+                android:text="Hafta Seçimi"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/academic_text_primary"
+                android:layout_marginBottom="8dp"/>
 
-        </RadioGroup>
+            <Spinner
+                android:id="@+id/spinnerWeek"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:background="@drawable/spinner_academic"/>
 
+        </LinearLayout>
+
+        <!-- QR Code Generation -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/card_academic"
+            android:padding="20dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="QR Kod Oluşturma"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/academic_primary"
+                android:layout_marginBottom="16dp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Süre Seçimi:"
+                android:textSize="16sp"
+                android:textColor="@color/academic_text_primary"
+                android:layout_marginBottom="12dp"/>
+
+            <RadioGroup
+                android:id="@+id/rgDuration"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="20dp">
+
+                <RadioButton
+                    android:id="@+id/rb5min"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="5 dakika"
+                    android:textColor="@color/academic_text_primary"/>
+
+                <RadioButton
+                    android:id="@+id/rb10min"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="10 dakika"
+                    android:textColor="@color/academic_text_primary"/>
+
+                <RadioButton
+                    android:id="@+id/rb15min"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="15 dakika"
+                    android:checked="true"
+                    android:textColor="@color/academic_text_primary"/>
+
+                <RadioButton
+                    android:id="@+id/rb30min"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="30 dakika"
+                    android:textColor="@color/academic_text_primary"/>
+
+                <RadioButton
+                    android:id="@+id/rb60min"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="60 dakika (Test)"
+                    android:checked="true"
+                    android:textColor="@color/academic_text_primary"/>
+
+            </RadioGroup>
+
+            <Button
+                android:id="@+id/btnGenerateQR"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="QR Kod Oluştur"
+                android:layout_marginBottom="16dp"
+                android:background="@drawable/button_academic_primary"
+                android:textColor="@android:color/white"/>
+
+            <Button
+                android:id="@+id/btnStopAttendance"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="Yoklamayı Durdur"
+                android:enabled="false"
+                android:layout_marginBottom="16dp"
+                android:background="@drawable/button_academic_outline"
+                android:textColor="@color/academic_primary"/>
+
+            <ProgressBar
+                android:id="@+id/progressBar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:visibility="gone"
+                android:layout_marginBottom="16dp"/>
+
+            <TextView
+                android:id="@+id/tvStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Ders ve hafta seçin, ardından QR kod oluşturun"
+                android:textAlignment="center"
+                android:textColor="@color/academic_text_secondary"
+                android:layout_marginBottom="16dp"/>
+
+            <TextView
+                android:id="@+id/tvCountdown"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="00:00"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textAlignment="center"
+                android:textColor="@color/academic_primary"
+                android:layout_marginBottom="16dp"/>
+
+            <ImageView
+                android:id="@+id/ivQRCode"
+                android:layout_width="250dp"
+                android:layout_height="250dp"
+                android:layout_gravity="center"
+                android:background="@android:color/white"
+                android:padding="16dp"
+                android:scaleType="centerInside"/>
+
+        </LinearLayout>
+
+        <!-- Attendance Control -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/card_academic"
+            android:padding="20dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Yoklama Kontrolü"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/academic_primary"
+                android:layout_marginBottom="16dp"/>
+
+            <Button
+                android:id="@+id/btnViewAttendance"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="Yoklama Listesini Görüntüle"
+                android:layout_marginBottom="12dp"
+                android:background="@drawable/button_academic_secondary"
+                android:textColor="@color/academic_primary"/>
+
+            <Button
+                android:id="@+id/btnExportAttendance"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="Yoklama Raporu Dışa Aktar"
+                android:background="@drawable/button_academic_outline"
+                android:textColor="@color/academic_primary"/>
+
+        </LinearLayout>
+
+        <!-- Navigation -->
         <Button
-            android:id="@+id/btnGenerateQR"
+            android:id="@+id/btnLogout"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Generate QR Code"
-            android:layout_marginBottom="16dp"/>
-
-        <Button
-            android:id="@+id/btnStopAttendance"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Stop Attendance"
-            android:enabled="false"
-            android:layout_marginBottom="24dp"/>
-
-        <ProgressBar
-            android:id="@+id/progressBar"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:visibility="gone"
-            android:layout_marginBottom="16dp"/>
-
-        <TextView
-            android:id="@+id/tvStatus"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Ready to generate QR code"
-            android:textAlignment="center"
-            android:layout_marginBottom="16dp"/>
-
-        <TextView
-            android:id="@+id/tvCountdown"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="00:00"
-            android:textSize="32sp"
-            android:textStyle="bold"
-            android:textAlignment="center"
-            android:layout_marginBottom="16dp"/>
-
-        <ImageView
-            android:id="@+id/ivQRCode"
-            android:layout_width="300dp"
-            android:layout_height="300dp"
-            android:layout_gravity="center"
-            android:background="@android:color/white"
-            android:padding="16dp"
-            android:scaleType="centerInside"/>
+            android:layout_height="48dp"
+            android:text="Çıkış Yap"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/button_academic_outline"
+            android:textColor="@color/academic_error"/>
 
     </LinearLayout>
 

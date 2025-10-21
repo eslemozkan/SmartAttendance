@@ -15,12 +15,9 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        binding.btnTeacher.setOnClickListener {
-            startActivity(Intent(this, TeacherActivity::class.java))
-        }
-        binding.btnStudent.setOnClickListener {
-            startActivity(Intent(this, StudentActivity::class.java))
-        }
+        // Redirect to login screen
+        startActivity(Intent(this, LoginActivity::class.java))
+        finish()
     }
 }
 

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SmartAttendance Test QR</title>
+    <style>
+        body { 
+            font-family: Arial; 
+            text-align: center; 
+            padding: 20px; 
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        .qr { 
+            border: 2px solid #1976D2; 
+            padding: 20px; 
+            margin: 20px; 
+            display: inline-block;
+            background: white;
+        }
+        h1 { color: #1976D2; }
+        .info { background: #e3f2fd; padding: 15px; margin: 20px 0; border-radius: 8px; }
+        .qr-code {
+            width: 200px;
+            height: 200px;
+            border: 1px solid #ccc;
+            margin: 10px auto;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎓 SmartAttendance Test QR</h1>
+        
+        <div class="qr">
+            <h3>Test QR Kodu</h3>
+            <img id="qrImage" 
+                 alt="Test QR Code" 
+                 class="qr-code">
+        </div>
+        
+        <div class="info">
+            <h3>📋 QR Kod Bilgileri:</h3>
+            <p><strong>Ders:</strong> Veri Yapıları ve Algoritmalar</p>
+            <p><strong>Hafta:</strong> 1. Hafta</p>
+            <p><strong>Süre:</strong> 60 dakika</p>
+        </div>
+        
+        <div style="background: #fff3e0; padding: 15px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #ff9800;">
+            <h3>📱 Test Talimatları:</h3>
+            <p>1. Bu sayfayı telefonda aç</p>
+            <p>2. SmartAttendance uygulamasını aç</p>
+            <p>3. Öğrenci olarak giriş yap</p>
+            <p>4. "Start Scan" butonuna bas</p>
+            <p>5. Bu QR kodu tara</p>
+        </div>
+        
+        <p style="color: #666; font-size: 12px;">
+            Bu QR kodu test amaçlıdır.
+        </p>
+    </div>
+
+    <script>
+        // Create QR data with current timestamp
+        const qrData = {
+            "assignmentId": 1,
+            "courseName": "Veri Yapıları ve Algoritmalar",
+            "week": "1. Hafta",
+            "createdAt": Date.now().toString(),
+            "expireAfter": 60
+        };
+        
+        const qrJson = JSON.stringify(qrData);
+        const encodedData = encodeURIComponent(qrJson);
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodedData}`;
+        
+        // Set QR code image
+        document.getElementById('qrImage').src = qrUrl;
+        
+        console.log('QR Data:', qrJson);
+    </script>
+</body>
+</html>

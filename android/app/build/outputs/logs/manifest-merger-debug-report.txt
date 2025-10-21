@@ -1,9 +1,9 @@
 -- Merging decision tree log ---
 manifest
-ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:2:1-25:12
-INJECTED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:2:1-25:12
-INJECTED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:2:1-25:12
-INJECTED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:2:1-25:12
+ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:2:1-29:12
+INJECTED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:2:1-29:12
+INJECTED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:2:1-29:12
+INJECTED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:2:1-29:12
 MERGED from [androidx.databinding:viewbinding:8.5.2] C:\Users\elife\.gradle\caches\transforms-4\d7523d65fef90a25da4fa2cf9ed88917\transformed\jetified-viewbinding-8.5.2\AndroidManifest.xml:2:1-7:12
 MERGED from [com.google.android.material:material:1.12.0] C:\Users\elife\.gradle\caches\transforms-4\bcd76576039abe4fc242de684dcac461\transformed\material-1.12.0\AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] C:\Users\elife\.gradle\caches\transforms-4\9b01e5f44e009bd65cbbf02957a7929d\transformed\constraintlayout-2.1.4\AndroidManifest.xml:2:1-11:12
@@ -80,9 +80,15 @@ MERGED from [com.google.android.odml:image:1.0.0-beta1] C:\Users\elife\.gradle\c
 		INJECTED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml
 	xmlns:android
 		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:2:11-69
+uses-permission#android.permission.INTERNET
+ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:3:5-67
+MERGED from [com.google.android.datatransport:transport-backend-cct:2.3.3] C:\Users\elife\.gradle\caches\transforms-4\649e865567222c2754933288f27116d6\transformed\jetified-transport-backend-cct-2.3.3\AndroidManifest.xml:26:5-67
+MERGED from [com.google.android.datatransport:transport-backend-cct:2.3.3] C:\Users\elife\.gradle\caches\transforms-4\649e865567222c2754933288f27116d6\transformed\jetified-transport-backend-cct-2.3.3\AndroidManifest.xml:26:5-67
+	android:name
+		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:3:22-64
 application
-ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:3:5-22:19
-INJECTED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:3:5-22:19
+ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:4:5-26:19
+INJECTED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:4:5-26:19
 MERGED from [com.google.android.material:material:1.12.0] C:\Users\elife\.gradle\caches\transforms-4\bcd76576039abe4fc242de684dcac461\transformed\material-1.12.0\AndroidManifest.xml:22:5-20
 MERGED from [com.google.android.material:material:1.12.0] C:\Users\elife\.gradle\caches\transforms-4\bcd76576039abe4fc242de684dcac461\transformed\material-1.12.0\AndroidManifest.xml:22:5-20
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] C:\Users\elife\.gradle\caches\transforms-4\9b01e5f44e009bd65cbbf02957a7929d\transformed\constraintlayout-2.1.4\AndroidManifest.xml:9:5-20
@@ -128,47 +134,53 @@ MERGED from [com.google.android.odml:image:1.0.0-beta1] C:\Users\elife\.gradle\c
 	android:appComponentFactory
 		ADDED from [androidx.core:core:1.13.1] C:\Users\elife\.gradle\caches\transforms-4\eecbda8adc5521377f06f41deda43748\transformed\core-1.13.1\AndroidManifest.xml:28:18-86
 	android:supportsRtl
-		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:6:9-35
+		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:7:9-35
 	android:label
-		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:5:9-40
+		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:6:9-40
 	android:allowBackup
-		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:4:9-35
+		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:5:9-35
 	android:theme
-		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:7:9-68
+		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:8:9-68
 activity#com.smartattendance.app.MainActivity
-ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:8:9-15:20
+ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:9:9-16:20
 	android:exported
-		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:10:13-36
+		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:11:13-36
 	android:name
-		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:9:13-41
+		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:10:13-41
 intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
-ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:11:13-14:29
+ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:12:13-15:29
 action#android.intent.action.MAIN
-ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:12:17-69
+ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:13:17-69
 	android:name
-		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:12:25-66
+		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:13:25-66
 category#android.intent.category.LAUNCHER
-ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:13:17-77
+ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:14:17-77
 	android:name
-		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:13:27-74
+		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:14:27-74
+activity#com.smartattendance.app.LoginActivity
+ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:17:9-19:40
+	android:exported
+		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:19:13-37
+	android:name
+		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:18:13-42
 activity#com.smartattendance.app.TeacherActivity
-ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:16:9-18:40
+ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:20:9-22:40
 	android:exported
-		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:18:13-37
+		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:22:13-37
 	android:name
-		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:17:13-44
+		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:21:13-44
 activity#com.smartattendance.app.StudentActivity
-ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:19:9-21:40
+ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:23:9-25:40
 	android:exported
-		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:21:13-37
+		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:25:13-37
 	android:name
-		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:20:13-44
+		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:24:13-44
 uses-permission#android.permission.CAMERA
-ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:24:5-65
+ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:28:5-65
 MERGED from [com.journeyapps:zxing-android-embedded:4.3.0] C:\Users\elife\.gradle\caches\transforms-4\1892c9755e6dcd142ec6175783ef5d05\transformed\jetified-zxing-android-embedded-4.3.0\AndroidManifest.xml:22:5-65
 MERGED from [com.journeyapps:zxing-android-embedded:4.3.0] C:\Users\elife\.gradle\caches\transforms-4\1892c9755e6dcd142ec6175783ef5d05\transformed\jetified-zxing-android-embedded-4.3.0\AndroidManifest.xml:22:5-65
 	android:name
-		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:24:22-62
+		ADDED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml:28:22-62
 uses-sdk
 INJECTED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from C:\Users\elife\Documents\GitHub\SmartAttendance\android\app\src\main\AndroidManifest.xml
@@ -485,10 +497,6 @@ MERGED from [com.google.android.datatransport:transport-runtime:2.2.6] C:\Users\
 MERGED from [com.google.android.datatransport:transport-runtime:2.2.6] C:\Users\elife\.gradle\caches\transforms-4\0cd2f353f906c5c05f4c1e39db9b8279\transformed\jetified-transport-runtime-2.2.6\AndroidManifest.xml:22:5-79
 	android:name
 		ADDED from [com.google.android.datatransport:transport-backend-cct:2.3.3] C:\Users\elife\.gradle\caches\transforms-4\649e865567222c2754933288f27116d6\transformed\jetified-transport-backend-cct-2.3.3\AndroidManifest.xml:25:22-76
-uses-permission#android.permission.INTERNET
-ADDED from [com.google.android.datatransport:transport-backend-cct:2.3.3] C:\Users\elife\.gradle\caches\transforms-4\649e865567222c2754933288f27116d6\transformed\jetified-transport-backend-cct-2.3.3\AndroidManifest.xml:26:5-67
-	android:name
-		ADDED from [com.google.android.datatransport:transport-backend-cct:2.3.3] C:\Users\elife\.gradle\caches\transforms-4\649e865567222c2754933288f27116d6\transformed\jetified-transport-backend-cct-2.3.3\AndroidManifest.xml:26:22-64
 service#com.google.android.datatransport.runtime.backends.TransportBackendDiscovery
 ADDED from [com.google.android.datatransport:transport-backend-cct:2.3.3] C:\Users\elife\.gradle\caches\transforms-4\649e865567222c2754933288f27116d6\transformed\jetified-transport-backend-cct-2.3.3\AndroidManifest.xml:29:9-35:19
 MERGED from [com.google.android.datatransport:transport-runtime:2.2.6] C:\Users\elife\.gradle\caches\transforms-4\0cd2f353f906c5c05f4c1e39db9b8279\transformed\jetified-transport-runtime-2.2.6\AndroidManifest.xml:36:9-38:40

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    
+    <!-- Graduation Cap -->
+    <path
+        android:fillColor="@color/academic_primary"
+        android:pathData="M12,3L1,9L12,15L21,10.09V17H23V9M5,13.18V17.18L12,21L19,17.18V13.18L12,17L5,13.18Z"/>
+    
+    <!-- QR Code Symbol -->
+    <path
+        android:fillColor="@color/academic_primary"
+        android:pathData="M3,3H7V7H3V3M9,3H11V5H9V3M13,3H15V5H13V3M17,3H21V7H17V3M3,9H5V11H3V9M7,9H9V11H7V9M11,9H13V11H11V9M15,9H17V11H15V9M19,9H21V11H19V9M3,13H5V15H3V13M7,13H9V15H7V13M11,13H13V15H11V13M15,13H17V15H15V13M19,13H21V15H19V13M3,17H7V21H3V17M9,17H11V19H9V17M13,17H15V19H13V17M17,17H21V21H17V17Z"/>
+    
+</vector>

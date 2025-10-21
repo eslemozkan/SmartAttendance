@@ -1,0 +1,76 @@
+# OS / Editor
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+.idea/
+*.iml
+.vscode/
+
+# Cursor/Agent
+.cursor/
+
+# Logs & temp
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Node / JS
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Generic build outputs
+build/
+dist/
+out/
+coverage/
+
+# Android / Gradle
+android/.gradle/
+android/.cxx/
+android/local.properties
+android/**/build/
+android/**/captures/
+android/**/.externalNativeBuild/
+android/app/**/release/
+android/app/release/
+*.keystore
+*.jks
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+*.so
+*.o
+*.obj
+
+# Supabase
+supabase/.env
+supabase/.branches
+supabase/.studio
+supabase/.temp
+supabase/functions/**/node_modules/
+supabase/functions/**/.env
+
+# Web (if present)
+web/.cache/
+web/dist/
+web/build/
+
+
+

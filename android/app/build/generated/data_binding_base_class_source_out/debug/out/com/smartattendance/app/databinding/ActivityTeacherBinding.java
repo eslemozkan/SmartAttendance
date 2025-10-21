@@ -10,6 +10,7 @@ import android.widget.ProgressBar;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.ScrollView;
+import android.widget.Spinner;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -25,10 +26,19 @@ public final class ActivityTeacherBinding implements ViewBinding {
   private final ScrollView rootView;
 
   @NonNull
+  public final Button btnExportAttendance;
+
+  @NonNull
   public final Button btnGenerateQR;
 
   @NonNull
+  public final Button btnLogout;
+
+  @NonNull
   public final Button btnStopAttendance;
+
+  @NonNull
+  public final Button btnViewAttendance;
 
   @NonNull
   public final ImageView ivQRCode;
@@ -49,7 +59,16 @@ public final class ActivityTeacherBinding implements ViewBinding {
   public final RadioButton rb5min;
 
   @NonNull
+  public final RadioButton rb60min;
+
+  @NonNull
   public final RadioGroup rgDuration;
+
+  @NonNull
+  public final Spinner spinnerCourse;
+
+  @NonNull
+  public final Spinner spinnerWeek;
 
   @NonNull
   public final TextView tvCountdown;
@@ -57,23 +76,35 @@ public final class ActivityTeacherBinding implements ViewBinding {
   @NonNull
   public final TextView tvStatus;
 
-  private ActivityTeacherBinding(@NonNull ScrollView rootView, @NonNull Button btnGenerateQR,
-      @NonNull Button btnStopAttendance, @NonNull ImageView ivQRCode,
+  @NonNull
+  public final TextView tvWelcome;
+
+  private ActivityTeacherBinding(@NonNull ScrollView rootView, @NonNull Button btnExportAttendance,
+      @NonNull Button btnGenerateQR, @NonNull Button btnLogout, @NonNull Button btnStopAttendance,
+      @NonNull Button btnViewAttendance, @NonNull ImageView ivQRCode,
       @NonNull ProgressBar progressBar, @NonNull RadioButton rb10min, @NonNull RadioButton rb15min,
-      @NonNull RadioButton rb30min, @NonNull RadioButton rb5min, @NonNull RadioGroup rgDuration,
-      @NonNull TextView tvCountdown, @NonNull TextView tvStatus) {
+      @NonNull RadioButton rb30min, @NonNull RadioButton rb5min, @NonNull RadioButton rb60min,
+      @NonNull RadioGroup rgDuration, @NonNull Spinner spinnerCourse, @NonNull Spinner spinnerWeek,
+      @NonNull TextView tvCountdown, @NonNull TextView tvStatus, @NonNull TextView tvWelcome) {
     this.rootView = rootView;
+    this.btnExportAttendance = btnExportAttendance;
     this.btnGenerateQR = btnGenerateQR;
+    this.btnLogout = btnLogout;
     this.btnStopAttendance = btnStopAttendance;
+    this.btnViewAttendance = btnViewAttendance;
     this.ivQRCode = ivQRCode;
     this.progressBar = progressBar;
     this.rb10min = rb10min;
     this.rb15min = rb15min;
     this.rb30min = rb30min;
     this.rb5min = rb5min;
+    this.rb60min = rb60min;
     this.rgDuration = rgDuration;
+    this.spinnerCourse = spinnerCourse;
+    this.spinnerWeek = spinnerWeek;
     this.tvCountdown = tvCountdown;
     this.tvStatus = tvStatus;
+    this.tvWelcome = tvWelcome;
   }
 
   @Override
@@ -103,15 +134,33 @@ public final class ActivityTeacherBinding implements ViewBinding {
     // This is done to optimize the compiled bytecode for size and performance.
     int id;
     missingId: {
+      id = R.id.btnExportAttendance;
+      Button btnExportAttendance = ViewBindings.findChildViewById(rootView, id);
+      if (btnExportAttendance == null) {
+        break missingId;
+      }
+
       id = R.id.btnGenerateQR;
       Button btnGenerateQR = ViewBindings.findChildViewById(rootView, id);
       if (btnGenerateQR == null) {
         break missingId;
       }
 
+      id = R.id.btnLogout;
+      Button btnLogout = ViewBindings.findChildViewById(rootView, id);
+      if (btnLogout == null) {
+        break missingId;
+      }
+
       id = R.id.btnStopAttendance;
       Button btnStopAttendance = ViewBindings.findChildViewById(rootView, id);
       if (btnStopAttendance == null) {
+        break missingId;
+      }
+
+      id = R.id.btnViewAttendance;
+      Button btnViewAttendance = ViewBindings.findChildViewById(rootView, id);
+      if (btnViewAttendance == null) {
         break missingId;
       }
 
@@ -151,9 +200,27 @@ public final class ActivityTeacherBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.rb60min;
+      RadioButton rb60min = ViewBindings.findChildViewById(rootView, id);
+      if (rb60min == null) {
+        break missingId;
+      }
+
       id = R.id.rgDuration;
       RadioGroup rgDuration = ViewBindings.findChildViewById(rootView, id);
       if (rgDuration == null) {
+        break missingId;
+      }
+
+      id = R.id.spinnerCourse;
+      Spinner spinnerCourse = ViewBindings.findChildViewById(rootView, id);
+      if (spinnerCourse == null) {
+        break missingId;
+      }
+
+      id = R.id.spinnerWeek;
+      Spinner spinnerWeek = ViewBindings.findChildViewById(rootView, id);
+      if (spinnerWeek == null) {
         break missingId;
       }
 
@@ -169,9 +236,16 @@ public final class ActivityTeacherBinding implements ViewBinding {
         break missingId;
       }
 
-      return new ActivityTeacherBinding((ScrollView) rootView, btnGenerateQR, btnStopAttendance,
-          ivQRCode, progressBar, rb10min, rb15min, rb30min, rb5min, rgDuration, tvCountdown,
-          tvStatus);
+      id = R.id.tvWelcome;
+      TextView tvWelcome = ViewBindings.findChildViewById(rootView, id);
+      if (tvWelcome == null) {
+        break missingId;
+      }
+
+      return new ActivityTeacherBinding((ScrollView) rootView, btnExportAttendance, btnGenerateQR,
+          btnLogout, btnStopAttendance, btnViewAttendance, ivQRCode, progressBar, rb10min, rb15min,
+          rb30min, rb5min, rb60min, rgDuration, spinnerCourse, spinnerWeek, tvCountdown, tvStatus,
+          tvWelcome);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

@@ -1,34 +1,46 @@
-// deno-lint-ignore-file no-explicit-any
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+// Deno Deploy/Edge Function: Create QR for a course/week
+// Request: { course_id: number, week_number: number, expire_after_minutes: number }
+// Response: { id, qr: { course_id, week_number, created_at, expire_after } }
+
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.5";
 
 type CreateQrInput = {
-  assignment_id: number;
-  expire_after_minutes: number; // 5,10,15,30
+  course_id?: number;
+  week_number?: number;
+  expire_after_minutes?: number;
 };
 
-type QrPayload = {
-  assignment_id: number;
-  created_at: string; // ISO
-  expire_after: number; // minutes
-};
-
-function jsonResponse(status: number, body: unknown) {
+function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json" },
+    headers: { 
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS"
+    },
   });
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
+  // CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+      },
+    });
+  }
+  
   if (req.method !== "POST") {
     return jsonResponse(405, { error: "Method not allowed" });
   }
 
-  const url = new URL(req.url);
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
   if (!supabaseUrl || !supabaseServiceRoleKey) {
     return jsonResponse(500, { error: "Missing Supabase service envs" });
   }
@@ -40,41 +52,53 @@ serve(async (req) => {
     return jsonResponse(400, { error: "Invalid JSON" });
   }
 
-  const { assignment_id, expire_after_minutes } = input ?? {} as CreateQrInput;
-  if (!assignment_id || !expire_after_minutes || expire_after_minutes <= 0) {
-    return jsonResponse(400, { error: "assignment_id and positive expire_after_minutes required" });
+  const course_id = Number(input.course_id);
+  const week_number = Number(input.week_number);
+  const expire_after_minutes = Number(input.expire_after_minutes ?? 15);
+
+  if (!course_id || !week_number || !Number.isFinite(expire_after_minutes) || expire_after_minutes <= 0) {
+    return jsonResponse(400, { error: "course_id, week_number, expire_after_minutes required" });
   }
 
-  const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
-    auth: { persistSession: false },
-  });
+  const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, { auth: { persistSession: false } });
 
-  const createdAt = new Date().toISOString();
-
-  // Insert a record to allow later auditing/validation on the server
-  const { data, error } = await supabase
+  // Ensure no active QR exists for this course/week
+  const { data: existing, error: existErr } = await supabase
     .from("qr_codes")
-    .insert({
-      assignment_id,
-      expire_after_minutes,
-      created_at: createdAt,
-      is_active: true,
-    })
-    .select("id, assignment_id, created_at, expire_after_minutes")
+    .select("id")
+    .eq("course_id", course_id)
+    .eq("week_number", week_number)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (existErr) {
+    return jsonResponse(500, { error: existErr.message });
+  }
+
+  if (existing) {
+    return jsonResponse(409, { error: "Bu hafta için zaten aktif bir QR var" });
+  }
+
+  // Insert new QR record
+  const { data: inserted, error: insErr } = await supabase
+    .from("qr_codes")
+    .insert({ course_id, week_number, expire_after_minutes, is_active: true })
+    .select("id, created_at")
     .single();
 
-  if (error || !data) {
-    return jsonResponse(500, { error: "Failed to create QR", details: error?.message });
+  if (insErr || !inserted) {
+    return jsonResponse(500, { error: insErr?.message ?? "Insert failed" });
   }
 
-  const payload: QrPayload = {
-    assignment_id: data.assignment_id,
-    created_at: data.created_at,
-    expire_after: data.expire_after_minutes,
+  const response = {
+    id: inserted.id,
+    qr: {
+      course_id,
+      week_number,
+      created_at: inserted.created_at,
+      expire_after: expire_after_minutes,
+    },
   };
 
-  // The frontend can encode this payload into a QR code
-  return jsonResponse(200, { qr: payload, id: data.id });
+  return jsonResponse(200, response);
 });
-
-

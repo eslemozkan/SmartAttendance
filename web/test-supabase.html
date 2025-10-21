@@ -1,0 +1,163 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SmartAttendance – Web Test</title>
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; margin: 24px; }
+    label { display:block; margin-top: 12px; }
+    input, button { padding: 8px 12px; margin-top: 4px; }
+    pre { background:#f4f4f4; padding:12px; overflow:auto; }
+    .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  </style>
+</head>
+<body>
+  <h1>SmartAttendance – Supabase Function Test</h1>
+  <p>
+    Use this page to test your Supabase Edge Functions from the browser. Make sure the
+    functions are deployed and secrets are set. Replace <b>Student ID</b> with a real UUID from
+    Supabase Auth (or a known test user) to pass DB constraints.
+  </p>
+
+  <div>
+    <h2>Create QR</h2>
+    <div class="row">
+      <label>Base URL <input id="baseUrl" type="text" style="min-width:420px" value="https://oubvhffqbsxsnbtinzbl.supabase.co" /></label>
+      <label>Anon Key <input id="anonKey" type="password" style="min-width:420px" placeholder="paste your anon key" /></label>
+    </div>
+    <div class="row">
+      <label><input type="radio" name="route" value="proxy" checked /> Use proxy /functions/v1</label>
+      <label><input type="radio" name="route" value="subdomain" /> Use functions subdomain</label>
+    </div>
+    <div class="row">
+      <label>Course ID <input id="courseId" type="number" value="1" /></label>
+      <label>Week Number <input id="weekNumber" type="number" value="1" /></label>
+      <label>Expire (min) <input id="expire" type="number" value="15" /></label>
+      <button id="btnCreate">Create QR</button>
+    </div>
+    <div id="createStatus"></div>
+    <pre id="createOut"></pre>
+    <div>
+      <h3>QR JSON</h3>
+      <pre id="qrJson"></pre>
+    </div>
+  </div>
+
+  <hr />
+
+  <div>
+    <h2>Validate QR</h2>
+    <label>Student ID (UUID from Auth) <input id="studentId" type="text" placeholder="00000000-0000-0000-0000-000000000000" style="min-width:420px" /></label>
+    <button id="btnValidate">Validate</button>
+    <div id="validateStatus"></div>
+    <pre id="validateOut"></pre>
+  </div>
+
+  <script>
+    const el = (id) => document.getElementById(id);
+
+    function setStatus(id, text, ok=true) {
+      const n = el(id);
+      n.textContent = text;
+      n.style.color = ok ? '#0a7500' : '#b00020';
+      n.style.marginTop = '8px';
+      n.style.fontWeight = '600';
+    }
+
+    let lastQr = null;
+
+    function route(baseUrl, fnName) {
+      const mode = [...document.querySelectorAll('input[name="route"]')].find(r => r.checked)?.value || 'proxy';
+      if (mode === 'subdomain') {
+        // convert https://<ref>.supabase.co -> https://<ref>.functions.supabase.co/<fn>
+        const url = new URL(baseUrl);
+        const host = url.host.replace('.supabase.co', '.functions.supabase.co');
+        return `${url.protocol}//${host}/${fnName}`;
+      }
+      // proxy: https://<ref>.supabase.co/functions/v1/<fn>
+      return `${baseUrl.replace(/\/$/, '')}/functions/v1/${fnName}`;
+    }
+
+    el('btnCreate').onclick = async () => {
+      const BASE_URL = el('baseUrl').value.trim();
+      const ANON = el('anonKey').value.trim();
+      const course_id = Number(el('courseId').value);
+      const week_number = Number(el('weekNumber').value);
+      const expire_after_minutes = Number(el('expire').value);
+
+      try {
+        setStatus('createStatus', 'Creating QR...', true);
+        const url = route(BASE_URL, 'create-qr');
+        const headers = new Headers();
+        headers.append('Content-Type', 'application/json');
+        if (ANON) {
+          headers.append('apikey', ANON);
+          headers.append('Authorization', `Bearer ${ANON}`);
+        }
+        const res = await fetch(url, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ course_id, week_number, expire_after_minutes }),
+        });
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch { data = { raw: text }; }
+        el('createOut').textContent = JSON.stringify({ status: res.status, data }, null, 2);
+
+        if (res.ok && data && data.qr) {
+          lastQr = data.qr;
+          el('qrJson').textContent = JSON.stringify({
+            course_id: data.qr.course_id,
+            week_number: data.qr.week_number,
+            created_at: data.qr.created_at,
+            expire_after: data.qr.expire_after,
+          }, null, 2);
+          setStatus('createStatus', 'QR created successfully');
+        } else {
+          lastQr = null;
+          el('qrJson').textContent = '';
+          setStatus('createStatus', 'Failed to create QR', false);
+        }
+      } catch (e) {
+        setStatus('createStatus', 'Error: ' + e.message, false);
+      }
+    };
+
+    el('btnValidate').onclick = async () => {
+      const BASE_URL = el('baseUrl').value.trim();
+      const ANON = el('anonKey').value.trim();
+      if (!lastQr) {
+        el('validateOut').textContent = 'No QR created yet';
+        return;
+      }
+      const student_id = el('studentId').value.trim();
+      const payload = { ...lastQr, student_id };
+      try {
+        setStatus('validateStatus', 'Validating...', true);
+        const url = route(BASE_URL, 'validate-qr');
+        const headers = new Headers();
+        headers.append('Content-Type', 'application/json');
+        if (ANON) {
+          headers.append('apikey', ANON);
+          headers.append('Authorization', `Bearer ${ANON}`);
+        }
+        const res = await fetch(url, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(payload),
+        });
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch { data = { raw: text }; }
+        el('validateOut').textContent = JSON.stringify({ status: res.status, data }, null, 2);
+        if (res.ok) setStatus('validateStatus', 'Attendance marked'); else setStatus('validateStatus', 'Failed to validate', false);
+      } catch (e) {
+        setStatus('validateStatus', 'Error: ' + e.message, false);
+      }
+    };
+  </script>
+</body>
+</html>
+
+

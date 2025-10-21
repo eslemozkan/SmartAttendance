@@ -27,6 +27,7 @@ class StudentActivity : AppCompatActivity() {
     private lateinit var cameraExecutor: ExecutorService
     private var imageAnalyzer: ImageAnalysis? = null
     private var isScanning = false
+    private var hasAttended = false // Track if student has already attended
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -49,6 +50,12 @@ class StudentActivity : AppCompatActivity() {
 
     private fun setupUI() {
         binding.btnStartScan.setOnClickListener {
+            if (hasAttended) {
+                binding.tvStatus.text = "Yoklama zaten alındı!"
+                Toast.makeText(this, "Bu ders için yoklama zaten alındı", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            
             if (ContextCompat.checkSelfPermission(
                     this,
                     Manifest.permission.CAMERA
@@ -147,37 +154,40 @@ class StudentActivity : AppCompatActivity() {
         if (!isScanning) return
         
         stopScanning()
-        binding.tvStatus.text = "Processing QR code..."
+        binding.tvStatus.text = "QR kod işleniyor..."
         
         lifecycleScope.launch {
             try {
-                val result = withContext(Dispatchers.IO) {
-                    apiService.validateQRCode(qrData, "student-${System.currentTimeMillis()}")
-                }
-                
+                // Sabit bir student ID kullan (test için)
+                val studentId = "550e8400-e29b-41d4-a716-446655440002"
+                val ok = apiService.validateQRCode(qrData, studentId) == true
+
                 runOnUiThread {
-                    when {
-                        result == true -> {
-                            binding.tvStatus.text = "Attendance marked successfully!"
-                            Toast.makeText(this@StudentActivity, "Attendance recorded!", Toast.LENGTH_LONG).show()
-                        }
-                        else -> {
-                            binding.tvStatus.text = "Failed to mark attendance"
-                            Toast.makeText(this@StudentActivity, "Error marking attendance", Toast.LENGTH_SHORT).show()
-                        }
+                    if (ok) {
+                        hasAttended = true
+                        binding.tvStatus.text = "Yoklama alındı!"
+                        binding.btnStartScan.isEnabled = false
+                        binding.btnStartScan.text = "Yoklama Alındı"
+                        Toast.makeText(this@StudentActivity, "Yoklama başarıyla alındı!", Toast.LENGTH_LONG).show()
+                    } else {
+                        binding.tvStatus.text = "QR kod geçersiz veya süresi dolmuş"
+                        Toast.makeText(this@StudentActivity, "QR kod geçersiz", Toast.LENGTH_SHORT).show()
                     }
                 }
             } catch (e: Exception) {
                 runOnUiThread {
-                    binding.tvStatus.text = "Error: ${e.message}"
-                    Toast.makeText(this@StudentActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                    binding.tvStatus.text = "Hata: ${e.message}"
+                    Toast.makeText(this@StudentActivity, "Hata: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         }
     }
+
+    
 
     override fun onDestroy() {
         super.onDestroy()
         cameraExecutor.shutdown()
     }
 }
+

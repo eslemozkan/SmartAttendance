@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/academic_background">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <!-- Header Section -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:layout_marginTop="40dp"
+            android:layout_marginBottom="40dp">
+
+            <!-- Logo/Icon -->
+            <ImageView
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:src="@drawable/ic_academic_logo"
+                android:background="@drawable/circle_academic_blue"
+                android:padding="16dp"
+                android:layout_marginBottom="16dp"/>
+
+            <!-- Title -->
+            <TextView
+                android:id="@+id/tvRoleTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="SmartAttendance"
+                android:textSize="28sp"
+                android:textStyle="bold"
+                android:textColor="@color/academic_primary"
+                android:layout_marginBottom="8dp"/>
+
+            <!-- Subtitle -->
+            <TextView
+                android:id="@+id/tvRoleSubtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Akademik Yoklama Sistemi"
+                android:textSize="16sp"
+                android:textColor="@color/academic_text_secondary"
+                android:gravity="center"/>
+
+        </LinearLayout>
+
+        <!-- Role Selection -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="32dp">
+
+            <Button
+                android:id="@+id/btnStudent"
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_weight="1"
+                android:text="Öğrenci"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/button_academic_primary"
+                android:textColor="@android:color/white"/>
+
+            <Button
+                android:id="@+id/btnTeacher"
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_weight="1"
+                android:text="Öğretmen"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/button_academic_secondary"
+                android:textColor="@color/academic_primary"/>
+
+        </LinearLayout>
+
+        <!-- Student Login Form -->
+        <LinearLayout
+            android:id="@+id/layoutStudentLogin"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            android:background="@drawable/card_academic"
+            android:padding="24dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Öğrenci Bilgileri"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/academic_primary"
+                android:layout_marginBottom="16dp"/>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:boxStrokeColor="@color/academic_primary"
+                app:hintTextColor="@color/academic_primary">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etStudentEmail"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Öğrenci E-posta"
+                    android:inputType="textEmailAddress"
+                    android:text="admin"/>
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp"
+                app:boxStrokeColor="@color/academic_primary"
+                app:hintTextColor="@color/academic_primary">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etStudentPassword"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Şifre"
+                    android:inputType="textPassword"
+                    android:text="admin"/>
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btnBackFromStudent"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:text="Geri"
+                    android:layout_marginEnd="8dp"
+                    android:background="@drawable/button_academic_outline"
+                    android:textColor="@color/academic_primary"/>
+
+                <Button
+                    android:id="@+id/btnStudentLogin"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="2"
+                    android:text="Giriş Yap"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/button_academic_primary"
+                    android:textColor="@android:color/white"/>
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Teacher Login Form -->
+        <LinearLayout
+            android:id="@+id/layoutTeacherLogin"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            android:background="@drawable/card_academic"
+            android:padding="24dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Akademik Personel Bilgileri"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/academic_primary"
+                android:layout_marginBottom="16dp"/>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:boxStrokeColor="@color/academic_primary"
+                app:hintTextColor="@color/academic_primary">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etTeacherEmail"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Öğretmen E-posta"
+                    android:inputType="textEmailAddress"
+                    android:text="admin"/>
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp"
+                app:boxStrokeColor="@color/academic_primary"
+                app:hintTextColor="@color/academic_primary">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etTeacherPassword"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Şifre"
+                    android:inputType="textPassword"
+                    android:text="admin"/>
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btnBackFromTeacher"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:text="Geri"
+                    android:layout_marginEnd="8dp"
+                    android:background="@drawable/button_academic_outline"
+                    android:textColor="@color/academic_primary"/>
+
+                <Button
+                    android:id="@+id/btnTeacherLogin"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="2"
+                    android:text="Giriş Yap"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/button_academic_primary"
+                    android:textColor="@android:color/white"/>
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Footer -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="© 2024 SmartAttendance - Akademik Yoklama Sistemi"
+            android:textSize="12sp"
+            android:textColor="@color/academic_text_secondary"
+            android:gravity="center"
+            android:layout_marginTop="32dp"/>
+
+    </LinearLayout>
+
+</ScrollView>

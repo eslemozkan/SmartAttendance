@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SmartAttendance Test QR</title>
+    <style>
+        body { font-family: Arial; text-align: center; padding: 20px; }
+        .qr { border: 2px solid #1976D2; padding: 20px; margin: 20px; display: inline-block; }
+    </style>
+</head>
+<body>
+    <h1>🎓 SmartAttendance Test QR</h1>
+    
+    <div class="qr">
+        <h3>Test QR Kodu</h3>
+        <p>Bu QR kodu test amaçlıdır</p>
+        <p><strong>Ders:</strong> Veri Yapıları ve Algoritmalar</p>
+        <p><strong>Hafta:</strong> 1. Hafta</p>
+        
+        <!-- Simple QR Code using Google Charts API -->
+        <img src="https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=%7B%22assignmentId%22%3A1%2C%22courseName%22%3A%22Veri%20Yap%C4%B1lar%C4%B1%20ve%20Algoritmalar%22%2C%22week%22%3A%221.%20Hafta%22%2C%22createdAt%22%3A%221703123456789%22%2C%22expireAfter%22%3A60%7D" 
+             alt="Test QR Code" 
+             style="border: 1px solid #ccc; margin: 10px;">
+    </div>
+    
+    <div style="background: #e3f2fd; padding: 15px; margin: 20px; border-radius: 8px;">
+        <h3>📱 Test Talimatları:</h3>
+        <p>1. Bu sayfayı telefonda aç</p>
+        <p>2. SmartAttendance uygulamasını aç</p>
+        <p>3. Öğrenci olarak giriş yap</p>
+        <p>4. "Start Scan" butonuna bas</p>
+        <p>5. Bu QR kodu tara</p>
+    </div>
+    
+    <p style="color: #666; font-size: 12px;">
+        Bu QR kodu test amaçlıdır ve gerçek yoklama sistemi için kullanılmaz.
+    </p>
+</body>
+</html>
