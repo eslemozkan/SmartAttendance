@@ -46,37 +46,33 @@
         </LinearLayout>
 
         <!-- Course Selection Card -->
-        <androidx.cardview.widget.CardView
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="4dp"
-            android:background="@color/academic_surface">
+            android:orientation="vertical"
+            android:background="@drawable/card_academic"
+            android:padding="20dp"
+            android:layout_marginBottom="16dp">
 
-            <LinearLayout
+            <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
+                android:text="Ders Seçimi"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/academic_primary"
+                android:layout_marginBottom="12dp" />
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Ders Seçimi"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/academic_primary"
-                    android:layout_marginBottom="12dp" />
+            <Spinner
+                android:id="@+id/spinner_course"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:background="@drawable/spinner_academic"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                style="@style/SpinnerAcademic" />
 
-                <Spinner
-                    android:id="@+id/spinner_course"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp" />
-
-            </LinearLayout>
-
-        </androidx.cardview.widget.CardView>
+        </LinearLayout>
 
         <!-- Progress Bar -->
         <ProgressBar
@@ -87,38 +83,30 @@
             android:visibility="gone" />
 
         <!-- Weeks Section -->
-        <androidx.cardview.widget.CardView
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="4dp"
-            android:background="@color/academic_surface">
+            android:orientation="vertical"
+            android:background="@drawable/card_academic"
+            android:padding="20dp"
+            android:layout_marginBottom="16dp">
 
-            <LinearLayout
+            <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
+                android:text="QR Kod Oluşturulan Haftalar"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/academic_primary"
+                android:layout_marginBottom="12dp" />
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="QR Kod Oluşturulan Haftalar"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/academic_primary"
-                    android:layout_marginBottom="12dp" />
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recycler_view_weeks"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false" />
 
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/recycler_view_weeks"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:nestedScrollingEnabled="false" />
-
-            </LinearLayout>
-
-        </androidx.cardview.widget.CardView>
+        </LinearLayout>
 
         <!-- Attendance Section -->
         <LinearLayout
@@ -128,47 +116,50 @@
             android:orientation="vertical"
             android:visibility="gone">
 
-            <androidx.cardview.widget.CardView
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="4dp"
-                android:background="@color/academic_surface">
+                android:orientation="vertical"
+                android:background="@drawable/card_academic"
+                android:padding="20dp">
 
-                <LinearLayout
+                <TextView
+                    android:id="@+id/tv_week_title"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
+                    android:text="Hafta 1 - 2025-01-20"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/academic_primary"
+                    android:layout_marginBottom="12dp" />
 
-                    <TextView
-                        android:id="@+id/tv_week_title"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Hafta 1 - 2025-01-20"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/academic_primary"
-                        android:layout_marginBottom="12dp" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Yoklama Listesi"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/academic_text_primary"
+                    android:layout_marginBottom="8dp" />
 
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Yoklama Listesi"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/academic_text_primary"
-                        android:layout_marginBottom="8dp" />
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recycler_view_attendance"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false" />
 
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/recycler_view_attendance"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:nestedScrollingEnabled="false" />
+                <!-- Export Button -->
+                <Button
+                    android:id="@+id/btn_export_report"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:text="Yoklama Raporunu Dışa Aktar"
+                    android:background="@drawable/button_academic_outline"
+                    android:textColor="@color/academic_primary"
+                    android:layout_marginTop="16dp"
+                    android:visibility="gone" />
 
-                </LinearLayout>
-
-            </androidx.cardview.widget.CardView>
+            </LinearLayout>
 
         </LinearLayout>
 

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:padding="16dp"
+    android:background="@drawable/item_attendance_background"
+    android:gravity="center_vertical">
+
+    <ImageView
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:src="@drawable/ic_person"
+        android:layout_marginEnd="12dp"
+        android:tint="@color/academic_success" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tv_student_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Öğrenci Adı"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/academic_text_primary" />
+
+        <TextView
+            android:id="@+id/tv_attendance_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Saat: 14:30 - QR Kod"
+            android:textSize="14sp"
+            android:textColor="@color/academic_text_secondary"
+            android:layout_marginTop="2dp" />
+
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="VAR"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/white"
+        android:background="@drawable/badge_primary"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="6dp" />
+
+</LinearLayout>

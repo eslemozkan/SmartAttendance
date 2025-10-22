@@ -1383,6 +1383,7 @@ int color academic_secondary_dark 0x7f050022
 int color academic_secondary_light 0x7f050023
 int color academic_success 0x7f050024
 int color academic_surface 0x7f050025
+int color academic_text_dark 0x7f050334
 int color academic_text_hint 0x7f050026
 int color academic_text_primary 0x7f050027
 int color academic_text_secondary 0x7f050028
@@ -3049,6 +3050,8 @@ int drawable abc_textfield_search_material 0x7f070075
 int drawable abc_vector_test 0x7f070076
 int drawable avd_hide_password 0x7f070077
 int drawable avd_show_password 0x7f070078
+int drawable badge_primary 0x7f070105
+int drawable badge_success 0x7f070101
 int drawable btn_checkbox_checked_mtrl 0x7f070079
 int drawable btn_checkbox_checked_to_unchecked_mtrl_animation 0x7f07007a
 int drawable btn_checkbox_unchecked_mtrl 0x7f07007b
@@ -3091,6 +3094,8 @@ int drawable googleg_standard_color_18 0x7f07009f
 int drawable ic_academic_logo 0x7f0700a0
 int drawable ic_arrow_back 0x7f0700a1
 int drawable ic_arrow_back_black_24 0x7f0700a2
+int drawable ic_arrow_forward 0x7f070102
+int drawable ic_calendar 0x7f070103
 int drawable ic_call_answer 0x7f0700a3
 int drawable ic_call_answer_low 0x7f0700a4
 int drawable ic_call_answer_video 0x7f0700a5
@@ -3107,8 +3112,11 @@ int drawable ic_mtrl_checked_circle 0x7f0700af
 int drawable ic_mtrl_chip_checked_black 0x7f0700b0
 int drawable ic_mtrl_chip_checked_circle 0x7f0700b1
 int drawable ic_mtrl_chip_close_circle 0x7f0700b2
+int drawable ic_person 0x7f070104
 int drawable ic_search_black_24 0x7f0700b3
 int drawable indeterminate_static 0x7f0700b4
+int drawable item_attendance_background 0x7f070106
+int drawable item_week_background 0x7f070107
 int drawable m3_avd_hide_password 0x7f0700b5
 int drawable m3_avd_show_password 0x7f0700b6
 int drawable m3_bottom_sheet_drag_handle 0x7f0700b7
@@ -3182,6 +3190,7 @@ int drawable notification_template_icon_low_bg 0x7f0700fa
 int drawable notification_tile_bg 0x7f0700fb
 int drawable notify_panel_notification_icon_bg 0x7f0700fc
 int drawable spinner_academic 0x7f0700fd
+int drawable spinner_item_selector 0x7f070109
 int drawable test_level_drawable 0x7f0700fe
 int drawable tooltip_frame_dark 0x7f0700ff
 int drawable tooltip_frame_light 0x7f070100
@@ -3287,7 +3296,6 @@ int id bounceEnd 0x7f080062
 int id bounceStart 0x7f080063
 int id btnBackFromStudent 0x7f080064
 int id btnBackFromTeacher 0x7f080065
-int id btnExportAttendance 0x7f080066
 int id btnGenerateQR 0x7f080067
 int id btnLogout 0x7f080068
 int id btnStartScan 0x7f080069
@@ -3299,6 +3307,7 @@ int id btnTeacher 0x7f08006e
 int id btnTeacherLogin 0x7f08006f
 int id btnViewAttendance 0x7f080070
 int id btn_back 0x7f080071
+int id btn_export_report 0x7f08023b
 int id buttonPanel 0x7f080072
 int id cache_measures 0x7f080073
 int id callMeasure 0x7f080074
@@ -3714,6 +3723,10 @@ int id tvRoleTitle 0x7f08020d
 int id tvStatus 0x7f08020e
 int id tvTitle 0x7f08020f
 int id tvWelcome 0x7f080210
+int id tv_attendance_time 0x7f080237
+int id tv_student_name 0x7f080238
+int id tv_week_date 0x7f080239
+int id tv_week_number 0x7f08023a
 int id tv_week_title 0x7f080211
 int id unchecked 0x7f080212
 int id uniform 0x7f080213
@@ -3890,6 +3903,8 @@ int layout design_text_input_end_icon 0x7f0b002f
 int layout design_text_input_start_icon 0x7f0b0030
 int layout ime_base_split_test_activity 0x7f0b0031
 int layout ime_secondary_split_test_activity 0x7f0b0032
+int layout item_attendance 0x7f0b0072
+int layout item_week 0x7f0b0073
 int layout m3_alert_dialog 0x7f0b0033
 int layout m3_alert_dialog_actions 0x7f0b0034
 int layout m3_alert_dialog_title 0x7f0b0035
@@ -3950,6 +3965,7 @@ int layout notification_template_part_time 0x7f0b006b
 int layout select_dialog_item_material 0x7f0b006c
 int layout select_dialog_multichoice_material 0x7f0b006d
 int layout select_dialog_singlechoice_material 0x7f0b006e
+int layout spinner_item 0x7f0b0076
 int layout support_simple_spinner_dropdown_item 0x7f0b006f
 int layout zxing_barcode_scanner 0x7f0b0070
 int layout zxing_capture 0x7f0b0071
@@ -4557,6 +4573,7 @@ int style ShapeAppearanceOverlay_MaterialComponents_MaterialCalendar_Day 0x7f100
 int style ShapeAppearanceOverlay_MaterialComponents_MaterialCalendar_Window_Fullscreen 0x7f100190
 int style ShapeAppearanceOverlay_MaterialComponents_MaterialCalendar_Year 0x7f100191
 int style ShapeAppearanceOverlay_MaterialComponents_TextInputLayout_FilledBox 0x7f100192
+int style SpinnerAcademic 0x7f100467
 int style TextAppearance_AppCompat 0x7f100193
 int style TextAppearance_AppCompat_Body1 0x7f100194
 int style TextAppearance_AppCompat_Body2 0x7f100195
@@ -7389,3 +7406,4 @@ int styleable zxing_finder_zxing_viewfinder_laser_visibility 3
 int styleable zxing_finder_zxing_viewfinder_mask 4
 int[] styleable zxing_view { 0x7f0304ed }
 int styleable zxing_view_zxing_scanner_layout 0
+int xml file_paths 0x7f120000

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:padding="16dp"
+    android:background="@drawable/item_week_background"
+    android:gravity="center_vertical">
+
+    <ImageView
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:src="@drawable/ic_calendar"
+        android:layout_marginEnd="12dp"
+        android:tint="@color/academic_primary" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tv_week_number"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Hafta 1"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/academic_primary" />
+
+        <TextView
+            android:id="@+id/tv_week_date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="20/10/2025"
+            android:textSize="14sp"
+            android:textColor="@color/academic_text_secondary"
+            android:layout_marginTop="2dp" />
+
+    </LinearLayout>
+
+    <ImageView
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:src="@drawable/ic_arrow_forward"
+        android:tint="@color/academic_text_secondary" />
+
+</LinearLayout>

@@ -37,11 +37,6 @@ data class QRCodeRecord(
 )
 
 
-@JsonClass(generateAdapter = true)
-data class StudentProfile(
-    @Json(name = "full_name") val fullName: String
-)
-
 class SupabaseService {
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)

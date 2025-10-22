@@ -1,5 +1,6 @@
 package com.smartattendance.app
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -36,12 +37,11 @@ class AttendanceListActivity : AppCompatActivity() {
     
     private fun setupUI() {
         // Setup course spinner
-        val courseAdapter = android.widget.ArrayAdapter(
+        val courseAdapter = CustomSpinnerAdapter(
             this,
-            android.R.layout.simple_spinner_item,
             courses.map { "${it.name} (${it.code})" }
+            // Default color (#424242) kullanılacak - daha açık gri
         )
-        courseAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         binding.spinnerCourse.adapter = courseAdapter
         
         binding.spinnerCourse.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
@@ -72,6 +72,11 @@ class AttendanceListActivity : AppCompatActivity() {
         // Navigation
         binding.btnBack.setOnClickListener {
             finish()
+        }
+        
+        // Setup export button
+        binding.btnExportReport.setOnClickListener {
+            exportAttendanceReport()
         }
         
         // Initially hide attendance section
@@ -128,6 +133,7 @@ class AttendanceListActivity : AppCompatActivity() {
                         currentAttendance = attendance
                         attendanceAdapter.updateAttendance(attendance)
                         binding.layoutAttendance.visibility = android.view.View.VISIBLE
+                        binding.btnExportReport.visibility = android.view.View.VISIBLE
                         binding.tvWeekTitle.text = "Hafta ${week.week_number} - ${week.created_at.substring(0, 10)}"
                     }
                 }
@@ -137,6 +143,64 @@ class AttendanceListActivity : AppCompatActivity() {
                     Toast.makeText(this@AttendanceListActivity, "Hata: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
+        }
+    }
+    
+    private fun exportAttendanceReport() {
+        if (selectedCourse == null || currentAttendance.isEmpty()) {
+            Toast.makeText(this, "Dışa aktarılacak yoklama verisi bulunamadı", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        try {
+            val csvContent = StringBuilder()
+            
+            // CSV Header
+            csvContent.append("Öğrenci Adı Soyadı,Öğrenci ID,Yoklama Saati,Yoklama Yöntemi\n")
+            
+            // CSV Data
+            currentAttendance.forEach { attendance ->
+                val studentName = attendance.profiles?.fullName ?: "Bilinmeyen"
+                val markedTime = attendance.markedAt
+                val method = attendance.method
+                
+                csvContent.append("\"$studentName\",\"${attendance.studentId}\",\"$markedTime\",\"$method\"\n")
+            }
+            
+            // Create file
+            val fileName = "Yoklama_Raporu_${selectedCourse!!.code}_${System.currentTimeMillis()}.csv"
+            val file = java.io.File(getExternalFilesDir(null), fileName)
+            file.writeText(csvContent.toString())
+            
+            // Share file
+            shareFile(file, fileName)
+            
+            Toast.makeText(this, "Rapor oluşturuldu: $fileName", Toast.LENGTH_LONG).show()
+            
+        } catch (e: Exception) {
+            Toast.makeText(this, "Dosya oluşturulurken hata: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    private fun shareFile(file: java.io.File, fileName: String) {
+        try {
+            val uri = androidx.core.content.FileProvider.getUriForFile(
+                this,
+                "${packageName}.fileprovider",
+                file
+            )
+            
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/csv"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_SUBJECT, "Yoklama Raporu - $fileName")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            
+            startActivity(Intent.createChooser(shareIntent, "Raporu Paylaş"))
+            
+        } catch (e: Exception) {
+            Toast.makeText(this, "Dosya paylaşılırken hata: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 }

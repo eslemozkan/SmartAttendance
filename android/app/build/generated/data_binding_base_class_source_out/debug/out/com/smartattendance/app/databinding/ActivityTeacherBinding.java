@@ -26,9 +26,6 @@ public final class ActivityTeacherBinding implements ViewBinding {
   private final ScrollView rootView;
 
   @NonNull
-  public final Button btnExportAttendance;
-
-  @NonNull
   public final Button btnGenerateQR;
 
   @NonNull
@@ -79,15 +76,14 @@ public final class ActivityTeacherBinding implements ViewBinding {
   @NonNull
   public final TextView tvWelcome;
 
-  private ActivityTeacherBinding(@NonNull ScrollView rootView, @NonNull Button btnExportAttendance,
-      @NonNull Button btnGenerateQR, @NonNull Button btnLogout, @NonNull Button btnStopAttendance,
+  private ActivityTeacherBinding(@NonNull ScrollView rootView, @NonNull Button btnGenerateQR,
+      @NonNull Button btnLogout, @NonNull Button btnStopAttendance,
       @NonNull Button btnViewAttendance, @NonNull ImageView ivQRCode,
       @NonNull ProgressBar progressBar, @NonNull RadioButton rb10min, @NonNull RadioButton rb15min,
       @NonNull RadioButton rb30min, @NonNull RadioButton rb5min, @NonNull RadioButton rb60min,
       @NonNull RadioGroup rgDuration, @NonNull Spinner spinnerCourse, @NonNull Spinner spinnerWeek,
       @NonNull TextView tvCountdown, @NonNull TextView tvStatus, @NonNull TextView tvWelcome) {
     this.rootView = rootView;
-    this.btnExportAttendance = btnExportAttendance;
     this.btnGenerateQR = btnGenerateQR;
     this.btnLogout = btnLogout;
     this.btnStopAttendance = btnStopAttendance;
@@ -134,12 +130,6 @@ public final class ActivityTeacherBinding implements ViewBinding {
     // This is done to optimize the compiled bytecode for size and performance.
     int id;
     missingId: {
-      id = R.id.btnExportAttendance;
-      Button btnExportAttendance = ViewBindings.findChildViewById(rootView, id);
-      if (btnExportAttendance == null) {
-        break missingId;
-      }
-
       id = R.id.btnGenerateQR;
       Button btnGenerateQR = ViewBindings.findChildViewById(rootView, id);
       if (btnGenerateQR == null) {
@@ -242,9 +232,9 @@ public final class ActivityTeacherBinding implements ViewBinding {
         break missingId;
       }
 
-      return new ActivityTeacherBinding((ScrollView) rootView, btnExportAttendance, btnGenerateQR,
-          btnLogout, btnStopAttendance, btnViewAttendance, ivQRCode, progressBar, rb10min, rb15min,
-          rb30min, rb5min, rb60min, rgDuration, spinnerCourse, spinnerWeek, tvCountdown, tvStatus,
+      return new ActivityTeacherBinding((ScrollView) rootView, btnGenerateQR, btnLogout,
+          btnStopAttendance, btnViewAttendance, ivQRCode, progressBar, rb10min, rb15min, rb30min,
+          rb5min, rb60min, rgDuration, spinnerCourse, spinnerWeek, tvCountdown, tvStatus,
           tvWelcome);
     }
     String missingId = rootView.getResources().getResourceName(id);

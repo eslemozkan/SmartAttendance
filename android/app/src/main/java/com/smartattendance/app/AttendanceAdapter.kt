@@ -19,7 +19,7 @@ class AttendanceAdapter : RecyclerView.Adapter<AttendanceAdapter.AttendanceViewH
     
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AttendanceViewHolder {
         val view = LayoutInflater.from(parent.context)
-            .inflate(android.R.layout.simple_list_item_2, parent, false)
+            .inflate(R.layout.item_attendance, parent, false)
         return AttendanceViewHolder(view)
     }
     
@@ -31,24 +31,20 @@ class AttendanceAdapter : RecyclerView.Adapter<AttendanceAdapter.AttendanceViewH
     override fun getItemCount(): Int = attendance.size
     
     inner class AttendanceViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val text1: TextView = itemView.findViewById(android.R.id.text1)
-        private val text2: TextView = itemView.findViewById(android.R.id.text2)
+        private val tvStudentName: TextView = itemView.findViewById(R.id.tv_student_name)
+        private val tvAttendanceTime: TextView = itemView.findViewById(R.id.tv_attendance_time)
         
         fun bind(record: AttendanceRecord) {
-            text1.text = record.student_name
-            text1.setTextColor(itemView.context.getColor(com.smartattendance.app.R.color.text_primary))
-            text1.textSize = 16f
+            tvStudentName.text = record.profiles?.fullName ?: "Bilinmeyen Öğrenci"
             
             val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
             val time = try {
-                timeFormat.format(Date(record.marked_at))
+                timeFormat.format(Date(record.markedAt))
             } catch (e: Exception) {
-                record.marked_at.substring(11, 16)
+                record.markedAt.substring(11, 16)
             }
             
-            text2.text = "Saat: $time - ${record.method}"
-            text2.setTextColor(itemView.context.getColor(com.smartattendance.app.R.color.text_secondary))
-            text2.textSize = 14f
+            tvAttendanceTime.text = "Saat: $time - ${record.method}"
         }
     }
 }

@@ -21,7 +21,7 @@ class WeekAdapter(
     
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): WeekViewHolder {
         val view = LayoutInflater.from(parent.context)
-            .inflate(android.R.layout.simple_list_item_1, parent, false)
+            .inflate(R.layout.item_week, parent, false)
         return WeekViewHolder(view)
     }
     
@@ -33,7 +33,8 @@ class WeekAdapter(
     override fun getItemCount(): Int = weeks.size
     
     inner class WeekViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val textView: TextView = itemView.findViewById(android.R.id.text1)
+        private val tvWeekNumber: TextView = itemView.findViewById(R.id.tv_week_number)
+        private val tvWeekDate: TextView = itemView.findViewById(R.id.tv_week_date)
         
         fun bind(week: WeekWithQR) {
             val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
@@ -43,9 +44,8 @@ class WeekAdapter(
                 week.created_at.substring(0, 10)
             }
             
-            textView.text = "Hafta ${week.week_number} - $date"
-            textView.setTextColor(itemView.context.getColor(com.smartattendance.app.R.color.academic_blue))
-            textView.textSize = 16f
+            tvWeekNumber.text = "Hafta ${week.week_number}"
+            tvWeekDate.text = date
             
             itemView.setOnClickListener {
                 onWeekClick(week)

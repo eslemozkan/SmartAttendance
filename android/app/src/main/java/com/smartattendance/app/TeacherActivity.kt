@@ -101,10 +101,6 @@ class TeacherActivity : AppCompatActivity() {
             startActivity(Intent(this, AttendanceListActivity::class.java))
         }
         
-        binding.btnExportAttendance.setOnClickListener {
-            exportAttendanceReport()
-        }
-        
         // Navigation
         binding.btnLogout.setOnClickListener {
             logout()
@@ -112,12 +108,11 @@ class TeacherActivity : AppCompatActivity() {
     }
     
     private fun setupCourseSpinner() {
-        val courseAdapter = android.widget.ArrayAdapter(
+        val courseAdapter = CustomSpinnerAdapter(
             this,
-            android.R.layout.simple_spinner_item,
             courses.map { "${it.name} (${it.code})" }
+            // Default color (#424242) kullanılacak - daha açık gri
         )
-        courseAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         binding.spinnerCourse.adapter = courseAdapter
         
         binding.spinnerCourse.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
@@ -130,12 +125,11 @@ class TeacherActivity : AppCompatActivity() {
     }
     
     private fun setupWeekSpinner() {
-        val weekAdapter = android.widget.ArrayAdapter(
+        val weekAdapter = CustomSpinnerAdapter(
             this,
-            android.R.layout.simple_spinner_item,
             weeks.map { it.name }
+            // Default color (#424242) kullanılacak - daha açık gri
         )
-        weekAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         binding.spinnerWeek.adapter = weekAdapter
     }
     
@@ -219,18 +213,13 @@ class TeacherActivity : AppCompatActivity() {
         dialog.setTitle("$courseName - $weekName")
         dialog.setMessage("Yoklama Listesi:\n\n" + 
             attendanceData.joinToString("\n") { 
-                "${it.student_name} - ${it.marked_at} - ${it.method}" 
+                "${it.profiles?.fullName ?: "Bilinmeyen"} - ${it.markedAt} - ${it.method}" 
             })
         dialog.setPositiveButton("Tamam") { _, _ -> }
         dialog.setNegativeButton("Geri") { dialog, _ ->
             dialog.dismiss()
         }
         dialog.show()
-    }
-    
-    private fun exportAttendanceReport() {
-        Toast.makeText(this, "Yoklama raporu dışa aktarılıyor...", Toast.LENGTH_SHORT).show()
-        // TODO: Implement export functionality
     }
     
     private fun logout() {

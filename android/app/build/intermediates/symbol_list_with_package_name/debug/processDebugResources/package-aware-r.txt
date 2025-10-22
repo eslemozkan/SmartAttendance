@@ -1384,6 +1384,7 @@ color academic_secondary_dark
 color academic_secondary_light
 color academic_success
 color academic_surface
+color academic_text_dark
 color academic_text_hint
 color academic_text_primary
 color academic_text_secondary
@@ -3050,6 +3051,8 @@ drawable abc_textfield_search_material
 drawable abc_vector_test
 drawable avd_hide_password
 drawable avd_show_password
+drawable badge_primary
+drawable badge_success
 drawable btn_checkbox_checked_mtrl
 drawable btn_checkbox_checked_to_unchecked_mtrl_animation
 drawable btn_checkbox_unchecked_mtrl
@@ -3092,6 +3095,8 @@ drawable googleg_standard_color_18
 drawable ic_academic_logo
 drawable ic_arrow_back
 drawable ic_arrow_back_black_24
+drawable ic_arrow_forward
+drawable ic_calendar
 drawable ic_call_answer
 drawable ic_call_answer_low
 drawable ic_call_answer_video
@@ -3108,8 +3113,11 @@ drawable ic_mtrl_checked_circle
 drawable ic_mtrl_chip_checked_black
 drawable ic_mtrl_chip_checked_circle
 drawable ic_mtrl_chip_close_circle
+drawable ic_person
 drawable ic_search_black_24
 drawable indeterminate_static
+drawable item_attendance_background
+drawable item_week_background
 drawable m3_avd_hide_password
 drawable m3_avd_show_password
 drawable m3_bottom_sheet_drag_handle
@@ -3183,6 +3191,7 @@ drawable notification_template_icon_low_bg
 drawable notification_tile_bg
 drawable notify_panel_notification_icon_bg
 drawable spinner_academic
+drawable spinner_item_selector
 drawable test_level_drawable
 drawable tooltip_frame_dark
 drawable tooltip_frame_light
@@ -3288,7 +3297,6 @@ id bounceEnd
 id bounceStart
 id btnBackFromStudent
 id btnBackFromTeacher
-id btnExportAttendance
 id btnGenerateQR
 id btnLogout
 id btnStartScan
@@ -3300,6 +3308,7 @@ id btnTeacher
 id btnTeacherLogin
 id btnViewAttendance
 id btn_back
+id btn_export_report
 id buttonPanel
 id cache_measures
 id callMeasure
@@ -3715,6 +3724,10 @@ id tvRoleTitle
 id tvStatus
 id tvTitle
 id tvWelcome
+id tv_attendance_time
+id tv_student_name
+id tv_week_date
+id tv_week_number
 id tv_week_title
 id unchecked
 id uniform
@@ -3891,6 +3904,8 @@ layout design_text_input_end_icon
 layout design_text_input_start_icon
 layout ime_base_split_test_activity
 layout ime_secondary_split_test_activity
+layout item_attendance
+layout item_week
 layout m3_alert_dialog
 layout m3_alert_dialog_actions
 layout m3_alert_dialog_title
@@ -3951,6 +3966,7 @@ layout notification_template_part_time
 layout select_dialog_item_material
 layout select_dialog_multichoice_material
 layout select_dialog_singlechoice_material
+layout spinner_item
 layout support_simple_spinner_dropdown_item
 layout zxing_barcode_scanner
 layout zxing_capture
@@ -4558,6 +4574,7 @@ style ShapeAppearanceOverlay_MaterialComponents_MaterialCalendar_Day
 style ShapeAppearanceOverlay_MaterialComponents_MaterialCalendar_Window_Fullscreen
 style ShapeAppearanceOverlay_MaterialComponents_MaterialCalendar_Year
 style ShapeAppearanceOverlay_MaterialComponents_TextInputLayout_FilledBox
+style SpinnerAcademic
 style TextAppearance_AppCompat
 style TextAppearance_AppCompat_Body1
 style TextAppearance_AppCompat_Body2
@@ -5441,3 +5458,4 @@ styleable include constraintSet
 styleable zxing_camera_preview zxing_framing_rect_height zxing_framing_rect_width zxing_preview_scaling_strategy zxing_use_texture_view
 styleable zxing_finder zxing_possible_result_points zxing_result_view zxing_viewfinder_laser zxing_viewfinder_laser_visibility zxing_viewfinder_mask
 styleable zxing_view zxing_scanner_layout
+xml file_paths

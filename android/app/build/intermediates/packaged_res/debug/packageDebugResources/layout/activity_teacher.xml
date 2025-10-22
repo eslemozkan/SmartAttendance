@@ -70,7 +70,7 @@
                 android:text="Hafta Seçimi"
                 android:textSize="16sp"
                 android:textStyle="bold"
-                android:textColor="@color/academic_text_primary"
+                android:textColor="@color/academic_primary"
                 android:layout_marginBottom="8dp"/>
 
             <Spinner
@@ -235,14 +235,6 @@
                 android:text="Yoklama Listesini Görüntüle"
                 android:layout_marginBottom="12dp"
                 android:background="@drawable/button_academic_secondary"
-                android:textColor="@color/academic_primary"/>
-
-            <Button
-                android:id="@+id/btnExportAttendance"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:text="Yoklama Raporu Dışa Aktar"
-                android:background="@drawable/button_academic_outline"
                 android:textColor="@color/academic_primary"/>
 
         </LinearLayout>
