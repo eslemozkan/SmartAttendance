@@ -1372,6 +1372,7 @@ color abc_tint_seek_thumb
 color abc_tint_spinner
 color abc_tint_switch_track
 color academic_background
+color academic_blue
 color academic_card
 color academic_divider
 color academic_error
@@ -1392,6 +1393,7 @@ color androidx_core_ripple_material_light
 color androidx_core_secondary_text_default_material_light
 color background_floating_material_dark
 color background_floating_material_light
+color background_light
 color background_material_dark
 color background_material_light
 color black
@@ -2149,6 +2151,8 @@ color switch_thumb_normal_material_dark
 color switch_thumb_normal_material_light
 color teal_200
 color teal_700
+color text_primary
+color text_secondary
 color tooltip_background_dark
 color tooltip_background_light
 color white
@@ -3086,6 +3090,7 @@ drawable design_snackbar_background
 drawable googleg_disabled_color_18
 drawable googleg_standard_color_18
 drawable ic_academic_logo
+drawable ic_arrow_back
 drawable ic_arrow_back_black_24
 drawable ic_call_answer
 drawable ic_call_answer_low
@@ -3294,6 +3299,7 @@ id btnStudentLogin
 id btnTeacher
 id btnTeacherLogin
 id btnViewAttendance
+id btn_back
 id buttonPanel
 id cache_measures
 id callMeasure
@@ -3442,6 +3448,7 @@ id labeled
 id layout
 id layoutStudentLogin
 id layoutTeacherLogin
+id layout_attendance
 id left
 id leftToRight
 id legacy
@@ -3567,6 +3574,7 @@ id postLayout
 id pressed
 id previewView
 id progressBar
+id progress_bar
 id progress_circular
 id progress_horizontal
 id radio
@@ -3577,6 +3585,8 @@ id rb30min
 id rb5min
 id rb60min
 id rectangles
+id recycler_view_attendance
+id recycler_view_weeks
 id report_drawn
 id reverseSawtooth
 id rgDuration
@@ -3628,6 +3638,7 @@ id spacer
 id special_effects_controller_view_tag
 id spinnerCourse
 id spinnerWeek
+id spinner_course
 id spline
 id split_action_bar
 id spread
@@ -3704,6 +3715,7 @@ id tvRoleTitle
 id tvStatus
 id tvTitle
 id tvWelcome
+id tv_week_title
 id unchecked
 id uniform
 id unlabeled
@@ -3856,6 +3868,7 @@ layout abc_search_dropdown_item_icons_2line
 layout abc_search_view
 layout abc_select_dialog_material
 layout abc_tooltip
+layout activity_attendance_list
 layout activity_login
 layout activity_main
 layout activity_student

@@ -65,6 +65,9 @@
         <activity
             android:name="com.smartattendance.app.StudentActivity"
             android:exported="false" />
+        <activity
+            android:name="com.smartattendance.app.AttendanceListActivity"
+            android:exported="false" />
 
         <service
             android:name="androidx.camera.core.impl.MetadataHolderService"

@@ -24,7 +24,7 @@
     <h2>Create QR</h2>
     <div class="row">
       <label>Base URL <input id="baseUrl" type="text" style="min-width:420px" value="https://oubvhffqbsxsnbtinzbl.supabase.co" /></label>
-      <label>Anon Key <input id="anonKey" type="password" style="min-width:420px" placeholder="paste your anon key" /></label>
+      <label>Anon Key <input id="anonKey" type="password" style="min-width:420px" placeholder="paste your anon key" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91YnZoZmZxYnN4c25idGluemJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4ODk4NzksImV4cCI6MjA3NjQ2NTg3OX0.kn6pYhbOFWBywNrenjZI9ZUPpOnwKugbIqZkOFcGrnI" /></label>
     </div>
     <div class="row">
       <label><input type="radio" name="route" value="proxy" checked /> Use proxy /functions/v1</label>
@@ -52,6 +52,69 @@
     <button id="btnValidate">Validate</button>
     <div id="validateStatus"></div>
     <pre id="validateOut"></pre>
+  </div>
+
+  <div class="section">
+    <h2>Get Weeks with QR</h2>
+    <label>Course ID <input id="getWeeksCourseId" type="number" placeholder="1" value="1" /></label>
+    <button id="btnGetWeeks">Get Weeks</button>
+    <div id="getWeeksStatus"></div>
+    <pre id="getWeeksOut"></pre>
+  </div>
+
+  <div class="section">
+    <h2>Test Direct Supabase REST API</h2>
+    <label>Course ID <input id="restCourseId" type="number" placeholder="1" value="1" /></label>
+    <button id="btnRestTest">Test REST API</button>
+    <div id="restStatus"></div>
+    <pre id="restOut"></pre>
+  </div>
+
+  <div class="section">
+    <h2>Fix RLS Policies</h2>
+    <p>Run these SQL commands in Supabase SQL Editor to fix permissions:</p>
+    <pre style="background: #f5f5f5; padding: 10px; border-radius: 5px; font-size: 12px;">
+-- Step 1: Check current RLS status
+SELECT schemaname, tablename, rowsecurity 
+FROM pg_tables 
+WHERE tablename IN ('qr_codes', 'attendances');
+
+-- Step 2: Drop ALL existing policies (if any)
+DROP POLICY IF EXISTS "Allow anonymous read access to qr_codes" ON qr_codes;
+DROP POLICY IF EXISTS "Allow anonymous read access to attendances" ON attendances;
+DROP POLICY IF EXISTS "Allow anonymous insert to attendances" ON attendances;
+DROP POLICY IF EXISTS "qr_select_scoped" ON qr_codes;
+DROP POLICY IF EXISTS "attendances_select_scoped" ON attendances;
+
+-- Step 3: Disable RLS temporarily
+ALTER TABLE qr_codes DISABLE ROW LEVEL SECURITY;
+ALTER TABLE attendances DISABLE ROW LEVEL SECURITY;
+
+-- Step 4: Re-enable RLS
+ALTER TABLE qr_codes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE attendances ENABLE ROW LEVEL SECURITY;
+
+-- Step 5: Create simple policies for anonymous access
+CREATE POLICY "Allow anonymous read access to qr_codes" ON qr_codes
+FOR SELECT TO public USING (true);
+
+CREATE POLICY "Allow anonymous read access to attendances" ON attendances
+FOR SELECT TO public USING (true);
+
+CREATE POLICY "Allow anonymous insert to attendances" ON attendances
+FOR INSERT TO public WITH CHECK (true);
+
+-- Step 6: Verify policies
+SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual 
+FROM pg_policies 
+WHERE tablename IN ('qr_codes', 'attendances');
+    </pre>
+    <button id="btnCopySQL">Copy SQL</button>
+    <button id="btnCheckRLS">Check RLS Status</button>
+    <button id="btnDisableRLS">Disable RLS (Temporary)</button>
+    <button id="btnGrantPermissions">Grant Table Permissions</button>
+    <div id="rlsStatus"></div>
+    <pre id="rlsOut"></pre>
   </div>
 
   <script>
@@ -155,6 +218,200 @@
       } catch (e) {
         setStatus('validateStatus', 'Error: ' + e.message, false);
       }
+    };
+
+    el('btnGetWeeks').onclick = async () => {
+      const BASE_URL = el('baseUrl').value.trim();
+      const ANON = el('anonKey').value.trim();
+      const courseId = el('getWeeksCourseId').value.trim();
+      try {
+        setStatus('getWeeksStatus', 'Getting weeks...', true);
+        const url = route(BASE_URL, 'get-weeks') + `?course_id=${courseId}`;
+        const headers = new Headers();
+        if (ANON) {
+          headers.append('apikey', ANON);
+          headers.append('Authorization', `Bearer ${ANON}`);
+        }
+        const res = await fetch(url, {
+          method: 'GET',
+          headers,
+        });
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch { data = { raw: text }; }
+        el('getWeeksOut').textContent = JSON.stringify({ status: res.status, data }, null, 2);
+        if (res.ok) setStatus('getWeeksStatus', 'Weeks retrieved'); else setStatus('getWeeksStatus', 'Failed to get weeks', false);
+      } catch (e) {
+        setStatus('getWeeksStatus', 'Error: ' + e.message, false);
+      }
+    };
+
+    el('btnRestTest').onclick = async () => {
+      const BASE_URL = el('baseUrl').value.trim();
+      const ANON = el('anonKey').value.trim();
+      const courseId = el('restCourseId').value.trim();
+      try {
+        setStatus('restStatus', 'Testing REST API...', true);
+        const url = `${BASE_URL}/rest/v1/qr_codes?course_id=eq.${courseId}&is_active=eq.true&select=course_id,week_number,created_at,is_active&order=week_number.asc`;
+        
+        console.log('Testing URL:', url);
+        console.log('Using API Key:', ANON ? 'Present' : 'Missing');
+        
+        const res = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'apikey': ANON,
+            'Authorization': `Bearer ${ANON}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch { data = { raw: text }; }
+        
+        el('restOut').textContent = JSON.stringify({ 
+          status: res.status, 
+          url: url,
+          headers: Object.fromEntries(res.headers.entries()),
+          data 
+        }, null, 2);
+        
+        if (res.ok) {
+          setStatus('restStatus', `REST API working! Found ${Array.isArray(data) ? data.length : 0} QR codes`);
+        } else {
+          setStatus('restStatus', 'REST API failed', false);
+        }
+      } catch (e) {
+        setStatus('restStatus', 'Error: ' + e.message, false);
+        el('restOut').textContent = 'Error: ' + e.message;
+      }
+    };
+
+    el('btnCopySQL').onclick = () => {
+      const sql = `-- Step 1: Check current RLS status
+SELECT schemaname, tablename, rowsecurity 
+FROM pg_tables 
+WHERE tablename IN ('qr_codes', 'attendances');
+
+-- Step 2: Drop ALL existing policies (if any)
+DROP POLICY IF EXISTS "Allow anonymous read access to qr_codes" ON qr_codes;
+DROP POLICY IF EXISTS "Allow anonymous read access to attendances" ON attendances;
+DROP POLICY IF EXISTS "Allow anonymous insert to attendances" ON attendances;
+DROP POLICY IF EXISTS "qr_select_scoped" ON qr_codes;
+DROP POLICY IF EXISTS "attendances_select_scoped" ON attendances;
+
+-- Step 3: Disable RLS temporarily
+ALTER TABLE qr_codes DISABLE ROW LEVEL SECURITY;
+ALTER TABLE attendances DISABLE ROW LEVEL SECURITY;
+
+-- Step 4: Re-enable RLS
+ALTER TABLE qr_codes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE attendances ENABLE ROW LEVEL SECURITY;
+
+-- Step 5: Create simple policies for anonymous access
+CREATE POLICY "Allow anonymous read access to qr_codes" ON qr_codes
+FOR SELECT TO public USING (true);
+
+CREATE POLICY "Allow anonymous read access to attendances" ON attendances
+FOR SELECT TO public USING (true);
+
+CREATE POLICY "Allow anonymous insert to attendances" ON attendances
+FOR INSERT TO public WITH CHECK (true);
+
+-- Step 6: Verify policies
+SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual 
+FROM pg_policies 
+WHERE tablename IN ('qr_codes', 'attendances');`;
+      
+      navigator.clipboard.writeText(sql).then(() => {
+        alert('SQL commands copied to clipboard! Paste them in Supabase SQL Editor.');
+      }).catch(() => {
+        alert('Could not copy to clipboard. Please copy manually from the text above.');
+      });
+    };
+
+    el('btnCheckRLS').onclick = async () => {
+      setStatus('rlsStatus', 'Checking RLS status...');
+      
+      try {
+        const BASE_URL = el('baseUrl').value.trim();
+        const ANON = el('anonKey').value.trim();
+        
+        const headers = new Headers();
+        headers.append('Authorization', 'Bearer ' + ANON);
+        headers.append('apikey', ANON);
+        headers.append('Content-Type', 'application/json');
+        
+        // Check RLS status
+        const res = await fetch(`${BASE_URL}/rest/v1/rpc/exec_sql`, {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify({
+            sql: `SELECT schemaname, tablename, rowsecurity FROM pg_tables WHERE tablename IN ('qr_codes', 'attendances');`
+          })
+        });
+        
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch { data = { raw: text }; }
+        
+        el('rlsOut').textContent = JSON.stringify({ status: res.status, data }, null, 2);
+        
+        if (res.ok) {
+          setStatus('rlsStatus', 'RLS status checked');
+        } else {
+          setStatus('rlsStatus', 'Failed to check RLS status', false);
+        }
+      } catch (e) {
+        setStatus('rlsStatus', 'Error: ' + e.message, false);
+      }
+    };
+
+    el('btnDisableRLS').onclick = () => {
+      const sql = `-- TEMPORARY: Disable RLS for testing
+ALTER TABLE qr_codes DISABLE ROW LEVEL SECURITY;
+ALTER TABLE attendances DISABLE ROW LEVEL SECURITY;
+
+-- Verify RLS is disabled
+SELECT schemaname, tablename, rowsecurity 
+FROM pg_tables 
+WHERE tablename IN ('qr_codes', 'attendances');`;
+      
+      navigator.clipboard.writeText(sql).then(() => {
+        alert('SQL commands copied to clipboard! This will temporarily disable RLS for testing. Paste them in Supabase SQL Editor.');
+      }).catch(() => {
+        alert('Could not copy to clipboard. Please copy manually from the text above.');
+      });
+    };
+
+    el('btnGrantPermissions').onclick = () => {
+      const sql = `-- Grant table permissions to anonymous users
+GRANT SELECT ON qr_codes TO anon;
+GRANT SELECT ON attendances TO anon;
+GRANT INSERT ON attendances TO anon;
+
+-- Grant permissions to authenticated users
+GRANT SELECT ON qr_codes TO authenticated;
+GRANT SELECT ON attendances TO authenticated;
+GRANT INSERT ON attendances TO authenticated;
+
+-- Verify permissions
+SELECT 
+    table_schema,
+    table_name,
+    grantee,
+    privilege_type
+FROM information_schema.table_privileges 
+WHERE table_name IN ('qr_codes', 'attendances')
+AND grantee IN ('anon', 'authenticated')
+ORDER BY table_name, grantee, privilege_type;`;
+      
+      navigator.clipboard.writeText(sql).then(() => {
+        alert('SQL commands copied to clipboard! This will grant table permissions. Paste them in Supabase SQL Editor.');
+      }).catch(() => {
+        alert('Could not copy to clipboard. Please copy manually from the text above.');
+      });
     };
   </script>
 </body>

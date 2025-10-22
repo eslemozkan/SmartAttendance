@@ -16,11 +16,11 @@
         "source": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-main-45:\\layout\\activity_login.xml"
     },
     {
-        "merged": "com.smartattendance.app-mergeDebugResources-42:/layout/activity_teacher.xml",
-        "source": "com.smartattendance.app-main-45:/layout/activity_teacher.xml"
+        "merged": "com.smartattendance.app-mergeDebugResources-42:/layout/activity_attendance_list.xml",
+        "source": "com.smartattendance.app-main-45:/layout/activity_attendance_list.xml"
     },
     {
-        "merged": "com.smartattendance.app-mergeDebugResources-42:/layout/activity_student.xml",
-        "source": "com.smartattendance.app-main-45:/layout/activity_student.xml"
+        "merged": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-mergeDebugResources-42:\\layout\\activity_attendance_list.xml",
+        "source": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-main-45:\\layout\\activity_attendance_list.xml"
     }
 ]

@@ -48,6 +48,25 @@ data class ValidateQRResponse(
     val error: String? = null
 )
 
+@JsonClass(generateAdapter = true)
+data class WeekWithQR(
+    val course_id: Int,
+    val week_number: Int,
+    val created_at: String,
+    val is_active: Boolean
+)
+
+
+@JsonClass(generateAdapter = true)
+data class GetWeeksResponse(
+    val weeks: List<WeekWithQR>
+)
+
+@JsonClass(generateAdapter = true)
+data class GetAttendanceResponse(
+    val attendance: List<AttendanceRecord>
+)
+
 class ApiService {
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
@@ -141,6 +160,64 @@ class ApiService {
         } catch (e: Exception) {
             android.util.Log.e("ApiService", "Exception in validateQRCode: ${e.message}", e)
             false
+        }
+    }
+    
+    suspend fun getWeeksWithQR(courseId: Int): List<WeekWithQR>? {
+        return try {
+            val httpRequest = Request.Builder()
+                .url("$functionsBaseUrl/get-weeks?course_id=$courseId")
+                .get()
+                .addHeader("Authorization", "Bearer $anonKey")
+                .addHeader("apikey", anonKey)
+                .build()
+            
+            val response = withContext(Dispatchers.IO) {
+                client.newCall(httpRequest).execute()
+            }
+            val responseBody = response.body?.string()
+            android.util.Log.d("ApiService", "GetWeeks Response Code: ${response.code}")
+            android.util.Log.d("ApiService", "GetWeeks Response Body: $responseBody")
+            
+            if (response.isSuccessful) {
+                val result = moshi.adapter(GetWeeksResponse::class.java).fromJson(responseBody)
+                result?.weeks
+            } else {
+                android.util.Log.e("ApiService", "GetWeeks HTTP Error: ${response.code} - $responseBody")
+                null
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("ApiService", "Exception in getWeeksWithQR: ${e.message}", e)
+            null
+        }
+    }
+    
+    suspend fun getAttendanceForWeek(courseId: Int, weekNumber: Int): List<AttendanceRecord>? {
+        return try {
+            val httpRequest = Request.Builder()
+                .url("$functionsBaseUrl/get-attendance?course_id=$courseId&week_number=$weekNumber")
+                .get()
+                .addHeader("Authorization", "Bearer $anonKey")
+                .addHeader("apikey", anonKey)
+                .build()
+            
+            val response = withContext(Dispatchers.IO) {
+                client.newCall(httpRequest).execute()
+            }
+            val responseBody = response.body?.string()
+            android.util.Log.d("ApiService", "GetAttendance Response Code: ${response.code}")
+            android.util.Log.d("ApiService", "GetAttendance Response Body: $responseBody")
+            
+            if (response.isSuccessful) {
+                val result = moshi.adapter(GetAttendanceResponse::class.java).fromJson(responseBody)
+                result?.attendance
+            } else {
+                android.util.Log.e("ApiService", "GetAttendance HTTP Error: ${response.code} - $responseBody")
+                null
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("ApiService", "Exception in getAttendanceForWeek: ${e.message}", e)
+            null
         }
     }
 }

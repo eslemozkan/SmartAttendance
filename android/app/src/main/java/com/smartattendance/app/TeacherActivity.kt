@@ -98,7 +98,7 @@ class TeacherActivity : AppCompatActivity() {
         
         // Attendance control
         binding.btnViewAttendance.setOnClickListener {
-            viewAttendanceList()
+            startActivity(Intent(this, AttendanceListActivity::class.java))
         }
         
         binding.btnExportAttendance.setOnClickListener {
@@ -158,33 +158,18 @@ class TeacherActivity : AppCompatActivity() {
             return
         }
         
-        // Get weeks that have QR codes created for this course
-        val availableWeeks = getAvailableWeeksForCourse(selectedCourse.id)
-        
-        if (availableWeeks.isEmpty()) {
-            Toast.makeText(this, "Bu ders için henüz QR kod oluşturulmamış", Toast.LENGTH_LONG).show()
-            return
-        }
-        
-        // Show week selection dialog
-        showWeekSelectionDialog(selectedCourse, availableWeeks)
+        // Tüm haftaları göster (QR kod oluşturulmuş olmasa bile)
+        showAllWeeksDialog(selectedCourse)
     }
     
-    private fun getAvailableWeeksForCourse(courseId: Int): List<Week> {
-        return weeks.filter { week ->
-            val weekKey = Pair(courseId, week.id)
-            qrCreatedWeeks.contains(weekKey)
-        }
-    }
-    
-    private fun showWeekSelectionDialog(course: Course, availableWeeks: List<Week>) {
+    private fun showAllWeeksDialog(course: Course) {
         val dialog = android.app.AlertDialog.Builder(this)
         dialog.setTitle("${course.name} - Hafta Seçimi")
         
-        val weekNames = availableWeeks.map { it.name }.toTypedArray()
+        val weekNames = weeks.map { "Hafta ${it.id} - ${it.name}" }.toTypedArray()
         
         dialog.setItems(weekNames) { _, which ->
-            val selectedWeek = availableWeeks[which]
+            val selectedWeek = weeks[which]
             showAttendanceForWeek(course, selectedWeek)
         }
         
@@ -195,54 +180,46 @@ class TeacherActivity : AppCompatActivity() {
         dialog.show()
     }
     
-    private fun showAttendanceForWeek(course: Course, week: Week) {
-        val attendanceData = getAttendanceData(course.id, week.id)
-        
-        if (attendanceData.isEmpty()) {
-            Toast.makeText(this, "Bu hafta için yoklama verisi bulunamadı", Toast.LENGTH_SHORT).show()
-        } else {
-            showAttendanceDialog(course.name, week.name, attendanceData)
+    private fun getAvailableWeeksForCourse(courseId: Int): List<Week> {
+        return weeks.filter { week ->
+            val weekKey = Pair(courseId, week.id)
+            qrCreatedWeeks.contains(weekKey)
         }
     }
     
-    private fun getAttendanceData(courseId: Int, weekId: Int): List<AttendanceRecord> {
-        // Dummy attendance data - in real system, this would come from database
-        return when {
-            courseId == 1 && weekId == 1 -> listOf(
-                AttendanceRecord("Ahmet Yılmaz", "2024-01-15 09:00", "Present"),
-                AttendanceRecord("Ayşe Demir", "2024-01-15 09:05", "Present"),
-                AttendanceRecord("Mehmet Kaya", "2024-01-15 09:10", "Present"),
-                AttendanceRecord("Fatma Öz", "2024-01-15 09:15", "Present")
-            )
-            courseId == 1 && weekId == 2 -> listOf(
-                AttendanceRecord("Ahmet Yılmaz", "2024-01-22 09:00", "Present"),
-                AttendanceRecord("Ayşe Demir", "2024-01-22 09:05", "Present"),
-                AttendanceRecord("Mehmet Kaya", "2024-01-22 09:10", "Present")
-            )
-            courseId == 2 && weekId == 1 -> listOf(
-                AttendanceRecord("Ali Veli", "2024-01-16 13:00", "Present"),
-                AttendanceRecord("Zeynep Ak", "2024-01-16 13:05", "Present"),
-                AttendanceRecord("Can Özkan", "2024-01-16 13:10", "Present")
-            )
-            courseId == 2 && weekId == 2 -> listOf(
-                AttendanceRecord("Ali Veli", "2024-01-23 13:00", "Present"),
-                AttendanceRecord("Zeynep Ak", "2024-01-23 13:05", "Present")
-            )
-            courseId == 3 && weekId == 1 -> listOf(
-                AttendanceRecord("Emre Şen", "2024-01-17 10:00", "Present"),
-                AttendanceRecord("Selin Yıldız", "2024-01-17 10:05", "Present"),
-                AttendanceRecord("Burak Çelik", "2024-01-17 10:10", "Present")
-            )
-            else -> emptyList()
+    
+    private fun showAttendanceForWeek(course: Course, week: Week) {
+        binding.progressBar.visibility = android.view.View.VISIBLE
+        
+        lifecycleScope.launch {
+            try {
+                val attendanceData = apiService.getAttendanceForWeek(course.id, week.id)
+                
+                runOnUiThread {
+                    binding.progressBar.visibility = android.view.View.GONE
+                    
+                    if (attendanceData.isNullOrEmpty()) {
+                        Toast.makeText(this@TeacherActivity, "Bu hafta için yoklama verisi bulunamadı", Toast.LENGTH_SHORT).show()
+                    } else {
+                        showAttendanceDialog(course.name, "Hafta ${week.id}", attendanceData)
+                    }
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    binding.progressBar.visibility = android.view.View.GONE
+                    Toast.makeText(this@TeacherActivity, "Hata: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
+    
     
     private fun showAttendanceDialog(courseName: String, weekName: String, attendanceData: List<AttendanceRecord>) {
         val dialog = android.app.AlertDialog.Builder(this)
         dialog.setTitle("$courseName - $weekName")
         dialog.setMessage("Yoklama Listesi:\n\n" + 
             attendanceData.joinToString("\n") { 
-                "${it.studentName} - ${it.time} - ${it.status}" 
+                "${it.student_name} - ${it.marked_at} - ${it.method}" 
             })
         dialog.setPositiveButton("Tamam") { _, _ -> }
         dialog.setNegativeButton("Geri") { dialog, _ ->

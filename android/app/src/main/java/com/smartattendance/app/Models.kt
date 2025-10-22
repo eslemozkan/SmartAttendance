@@ -13,7 +13,21 @@ data class Week(
 )
 
 data class AttendanceRecord(
-    val studentName: String,
-    val time: String,
-    val status: String
-)
+    val student_id: String,
+    val student_name: String,
+    val marked_at: String,
+    val method: String
+) {
+    // Constructor for SupabaseService compatibility
+    constructor(
+        studentId: String,
+        markedAt: String,
+        method: String,
+        profiles: com.smartattendance.app.StudentProfile?
+    ) : this(
+        student_id = studentId,
+        student_name = profiles?.fullName ?: "Unknown Student",
+        marked_at = markedAt,
+        method = method
+    )
+}
