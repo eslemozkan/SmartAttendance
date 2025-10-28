@@ -70,6 +70,9 @@
         <activity
             android:name="com.smartattendance.app.AttendanceListActivity"
             android:exported="false" />
+        <activity
+            android:name="com.smartattendance.app.SignupActivity"
+            android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

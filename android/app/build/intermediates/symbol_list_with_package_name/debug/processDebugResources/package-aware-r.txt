@@ -3295,10 +3295,12 @@ id bounce
 id bounceBoth
 id bounceEnd
 id bounceStart
+id btnBack
 id btnBackFromStudent
 id btnBackFromTeacher
 id btnGenerateQR
 id btnLogout
+id btnSignup
 id btnStartScan
 id btnStopAttendance
 id btnStopScan
@@ -3393,6 +3395,9 @@ id endToStart
 id enterAlways
 id enterAlwaysCollapsed
 id escape
+id etConfirm
+id etEmail
+id etPassword
 id etStudentEmail
 id etStudentPassword
 id etTeacherEmail
@@ -3582,6 +3587,7 @@ id position
 id postLayout
 id pressed
 id previewView
+id progress
 id progressBar
 id progress_bar
 id progress_circular
@@ -3721,6 +3727,7 @@ id triangle
 id tvCountdown
 id tvRoleSubtitle
 id tvRoleTitle
+id tvSignupLink
 id tvStatus
 id tvTitle
 id tvWelcome
@@ -3884,6 +3891,7 @@ layout abc_tooltip
 layout activity_attendance_list
 layout activity_login
 layout activity_main
+layout activity_signup
 layout activity_student
 layout activity_teacher
 layout custom_dialog

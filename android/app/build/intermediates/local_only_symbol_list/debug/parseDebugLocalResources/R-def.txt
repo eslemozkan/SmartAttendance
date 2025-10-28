@@ -43,10 +43,12 @@ drawable item_attendance_background
 drawable item_week_background
 drawable spinner_academic
 drawable spinner_item_selector
+id btnBack
 id btnBackFromStudent
 id btnBackFromTeacher
 id btnGenerateQR
 id btnLogout
+id btnSignup
 id btnStartScan
 id btnStopAttendance
 id btnStopScan
@@ -57,6 +59,9 @@ id btnTeacherLogin
 id btnViewAttendance
 id btn_back
 id btn_export_report
+id etConfirm
+id etEmail
+id etPassword
 id etStudentEmail
 id etStudentPassword
 id etTeacherEmail
@@ -66,6 +71,7 @@ id layoutStudentLogin
 id layoutTeacherLogin
 id layout_attendance
 id previewView
+id progress
 id progressBar
 id progress_bar
 id rb10min
@@ -82,6 +88,7 @@ id spinner_course
 id tvCountdown
 id tvRoleSubtitle
 id tvRoleTitle
+id tvSignupLink
 id tvStatus
 id tvTitle
 id tvWelcome
@@ -93,6 +100,7 @@ id tv_week_title
 layout activity_attendance_list
 layout activity_login
 layout activity_main
+layout activity_signup
 layout activity_student
 layout activity_teacher
 layout item_attendance

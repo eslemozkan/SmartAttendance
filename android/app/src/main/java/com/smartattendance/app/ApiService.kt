@@ -67,6 +67,14 @@ data class GetAttendanceResponse(
     val attendance: List<AttendanceRecord>
 )
 
+@JsonClass(generateAdapter = true)
+data class StudentSignupResult(
+    val ok: Boolean,
+    val error: String? = null,
+    val message: String? = null,
+    @Json(name = "user_id") val userId: String? = null
+)
+
 class ApiService {
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
@@ -81,6 +89,96 @@ class ApiService {
     private val functionsBaseUrl = "https://oubvhffqbsxsnbtinzbl.functions.supabase.co"
     // Supabase anon public key (should be moved to secure storage for production)
     private val anonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91YnZoZmZxYnN4c25idGluemJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4ODk4NzksImV4cCI6MjA3NjQ2NTg3OX0.kn6pYhbOFWBywNrenjZI9ZUPpOnwKugbIqZkOFcGrnI"
+    
+    suspend fun checkStudentWhitelist(email: String): Boolean {
+        return try {
+            val payload = """{"email":"$email"}"""
+            val httpRequest = Request.Builder()
+                .url("$functionsBaseUrl/check-student-whitelist")
+                .post(payload.toRequestBody("application/json".toMediaType()))
+                .addHeader("Content-Type", "application/json")
+                .addHeader("Authorization", "Bearer $anonKey")
+                .addHeader("apikey", anonKey)
+                .build()
+            val response = withContext(Dispatchers.IO) {
+                client.newCall(httpRequest).execute()
+            }
+            val body = response.body?.string()
+            android.util.Log.d("ApiService", "Whitelist Code: ${response.code} Body: $body")
+            if (!response.isSuccessful || body.isNullOrEmpty()) return false
+            // naive parse: look for ok:true
+            body.contains("\"ok\":true")
+        } catch (e: Exception) {
+            android.util.Log.e("ApiService", "checkStudentWhitelist error: ${e.message}", e)
+            false
+        }
+    }
+    
+    suspend fun studentSignup(email: String, password: String): StudentSignupResult {
+        return try {
+            val payload = """{"email":"$email","password":"$password"}"""
+            val url = "$functionsBaseUrl/student-signup"
+            android.util.Log.d("ApiService", "Signup URL: $url")
+            android.util.Log.d("ApiService", "Signup Payload: $payload")
+            android.util.Log.d("ApiService", "Anon Key: ${anonKey.take(20)}...")
+            
+            val httpRequest = Request.Builder()
+                .url("$functionsBaseUrl/student-signup")
+                .post(payload.toRequestBody("application/json".toMediaType()))
+                .addHeader("Content-Type", "application/json")
+                .addHeader("Authorization", "Bearer $anonKey")
+                .addHeader("apikey", anonKey)
+                .build()
+            
+            val response = withContext(Dispatchers.IO) {
+                client.newCall(httpRequest).execute()
+            }
+            val body = response.body?.string()
+            android.util.Log.d("ApiService", "Signup Response Code: ${response.code}")
+            android.util.Log.d("ApiService", "Signup Response Body: $body")
+            
+            if (response.isSuccessful) {
+                val result = moshi.adapter(StudentSignupResult::class.java).fromJson(body)
+                result ?: StudentSignupResult(false, "parse_error")
+            } else {
+                val errorResult = moshi.adapter(StudentSignupResult::class.java).fromJson(body)
+                errorResult ?: StudentSignupResult(false, "http_error_${response.code}")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("ApiService", "studentSignup error: ${e.javaClass.simpleName} - ${e.message}", e)
+            android.util.Log.e("ApiService", "Stack trace: ${e.stackTraceToString()}")
+            StudentSignupResult(false, "network_error")
+        }
+    }
+    
+    suspend fun studentLogin(email: String, password: String): Boolean {
+        return try {
+            val url = "https://oubvhffqbsxsnbtinzbl.supabase.co/auth/v1/token?grant_type=password"
+            val payload = """{"email":"$email","password":"$password"}"""
+            
+            android.util.Log.d("ApiService", "Login URL: $url")
+            
+            val httpRequest = Request.Builder()
+                .url(url)
+                .post(payload.toRequestBody("application/json".toMediaType()))
+                .addHeader("Content-Type", "application/json")
+                .addHeader("apikey", anonKey)
+                .build()
+            
+            val response = withContext(Dispatchers.IO) {
+                client.newCall(httpRequest).execute()
+            }
+            
+            val body = response.body?.string()
+            android.util.Log.d("ApiService", "Login Response Code: ${response.code}")
+            android.util.Log.d("ApiService", "Login Response Body: ${body?.take(100)}...")
+            
+            response.isSuccessful && body != null && body.contains("access_token")
+        } catch (e: Exception) {
+            android.util.Log.e("ApiService", "studentLogin error: ${e.message}", e)
+            false
+        }
+    }
     
     suspend fun createQRCode(courseId: Int, weekNumber: Int, expireAfterMinutes: Int): CreateQRResponse? {
         val request = CreateQRRequest(courseId, weekNumber, expireAfterMinutes)

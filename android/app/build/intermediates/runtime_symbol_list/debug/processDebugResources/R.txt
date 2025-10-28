@@ -3294,10 +3294,12 @@ int id bounce 0x7f080060
 int id bounceBoth 0x7f080061
 int id bounceEnd 0x7f080062
 int id bounceStart 0x7f080063
+int id btnBack 0x7f08023c
 int id btnBackFromStudent 0x7f080064
 int id btnBackFromTeacher 0x7f080065
 int id btnGenerateQR 0x7f080067
 int id btnLogout 0x7f080068
+int id btnSignup 0x7f08023d
 int id btnStartScan 0x7f080069
 int id btnStopAttendance 0x7f08006a
 int id btnStopScan 0x7f08006b
@@ -3392,6 +3394,9 @@ int id endToStart 0x7f0800c2
 int id enterAlways 0x7f0800c3
 int id enterAlwaysCollapsed 0x7f0800c4
 int id escape 0x7f0800c5
+int id etConfirm 0x7f08023e
+int id etEmail 0x7f08023f
+int id etPassword 0x7f080240
 int id etStudentEmail 0x7f0800c6
 int id etStudentPassword 0x7f0800c7
 int id etTeacherEmail 0x7f0800c8
@@ -3581,6 +3586,7 @@ int id position 0x7f08017f
 int id postLayout 0x7f080180
 int id pressed 0x7f080181
 int id previewView 0x7f080182
+int id progress 0x7f080241
 int id progressBar 0x7f080183
 int id progress_bar 0x7f080184
 int id progress_circular 0x7f080185
@@ -3720,6 +3726,7 @@ int id triangle 0x7f08020a
 int id tvCountdown 0x7f08020b
 int id tvRoleSubtitle 0x7f08020c
 int id tvRoleTitle 0x7f08020d
+int id tvSignupLink 0x7f080242
 int id tvStatus 0x7f08020e
 int id tvTitle 0x7f08020f
 int id tvWelcome 0x7f080210
@@ -3883,6 +3890,7 @@ int layout abc_tooltip 0x7f0b001b
 int layout activity_attendance_list 0x7f0b001c
 int layout activity_login 0x7f0b001d
 int layout activity_main 0x7f0b001e
+int layout activity_signup 0x7f0b0077
 int layout activity_student 0x7f0b001f
 int layout activity_teacher 0x7f0b0020
 int layout custom_dialog 0x7f0b0021

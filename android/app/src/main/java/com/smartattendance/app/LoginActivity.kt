@@ -5,10 +5,13 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.smartattendance.app.databinding.ActivityLoginBinding
+import kotlinx.coroutines.launch
 
 class LoginActivity : AppCompatActivity() {
     private lateinit var binding: ActivityLoginBinding
+    private val api = ApiService()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,13 +43,10 @@ class LoginActivity : AppCompatActivity() {
             val email = binding.etStudentEmail.text.toString().trim()
             val password = binding.etStudentPassword.text.toString().trim()
             
-            if (validateStudentLogin(email, password)) {
-                val intent = Intent(this, StudentActivity::class.java)
-                intent.putExtra("user_type", "student")
-                intent.putExtra("email", email)
-                startActivity(intent)
+            if (email.isNotEmpty() && password.isNotEmpty()) {
+                performStudentLogin(email, password)
             } else {
-                Toast.makeText(this, "Geçersiz öğrenci bilgileri", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Email ve şifre girin", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -55,13 +55,11 @@ class LoginActivity : AppCompatActivity() {
             val email = binding.etTeacherEmail.text.toString().trim()
             val password = binding.etTeacherPassword.text.toString().trim()
             
-            if (validateTeacherLogin(email, password)) {
-                val intent = Intent(this, TeacherActivity::class.java)
-                intent.putExtra("user_type", "teacher")
-                intent.putExtra("email", email)
-                startActivity(intent)
+            // Teacher login için hala basit validation (henüz tam entegre değil)
+            if (email.isNotEmpty() && password.isNotEmpty()) {
+                performTeacherLogin(email, password)
             } else {
-                Toast.makeText(this, "Geçersiz öğretmen bilgileri", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Email ve şifre girin", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -79,17 +77,49 @@ class LoginActivity : AppCompatActivity() {
             binding.tvRoleTitle.text = "SmartAttendance"
             binding.tvRoleSubtitle.text = "Akademik Yoklama Sistemi"
         }
+
+        // Signup link
+        binding.tvSignupLink.setOnClickListener {
+            val intent = Intent(this, SignupActivity::class.java)
+            startActivity(intent)
+        }
     }
 
-    private fun validateStudentLogin(email: String, password: String): Boolean {
-        // Dummy validation - replace with real authentication
-        return email.isNotEmpty() && password.isNotEmpty() && 
-               (email.contains("@") || email == "admin") && password == "admin"
+    private fun performStudentLogin(email: String, password: String) {
+        binding.btnStudentLogin.isEnabled = false
+        Toast.makeText(this, "Giriş yapılıyor...", Toast.LENGTH_SHORT).show()
+        
+        lifecycleScope.launch {
+            try {
+                // Supabase REST API ile login yap
+                val success = api.studentLogin(email, password)
+                
+                if (success) {
+                    val intent = Intent(this@LoginActivity, StudentActivity::class.java)
+                    intent.putExtra("user_type", "student")
+                    intent.putExtra("email", email)
+                    startActivity(intent)
+                    finish()
+                } else {
+                    Toast.makeText(this@LoginActivity, "Geçersiz email veya şifre", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this@LoginActivity, "Giriş hatası: ${e.message}", Toast.LENGTH_SHORT).show()
+            } finally {
+                binding.btnStudentLogin.isEnabled = true
+            }
+        }
     }
 
-    private fun validateTeacherLogin(email: String, password: String): Boolean {
-        // Dummy validation - replace with real authentication
-        return email.isNotEmpty() && password.isNotEmpty() && 
-               (email.contains("@") || email == "admin") && password == "admin"
+    private fun performTeacherLogin(email: String, password: String) {
+        // Teacher için geçici olarak basit validation
+        if (email.contains("@") && password.isNotEmpty()) {
+            val intent = Intent(this, TeacherActivity::class.java)
+            intent.putExtra("user_type", "teacher")
+            intent.putExtra("email", email)
+            startActivity(intent)
+        } else {
+            Toast.makeText(this, "Geçersiz öğretmen bilgileri", Toast.LENGTH_SHORT).show()
+        }
     }
 }
