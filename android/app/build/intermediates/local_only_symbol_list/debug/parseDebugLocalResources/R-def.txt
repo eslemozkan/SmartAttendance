@@ -79,9 +79,12 @@ id rb15min
 id rb30min
 id rb5min
 id rb60min
+id rbStudent
+id rbTeacher
 id recycler_view_attendance
 id recycler_view_weeks
 id rgDuration
+id rgRole
 id spinnerCourse
 id spinnerWeek
 id spinner_course
@@ -90,6 +93,7 @@ id tvRoleSubtitle
 id tvRoleTitle
 id tvSignupLink
 id tvStatus
+id tvTeacherSignupLink
 id tvTitle
 id tvWelcome
 id tv_attendance_time

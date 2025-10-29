@@ -15,7 +15,7 @@
             android:id="@+id/tvTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Öğrenci Kayıt"
+            android:text="Kayıt"
             android:textColor="@color/academic_primary"
             android:textStyle="bold"
             android:textSize="22sp"/>
@@ -29,7 +29,34 @@
 
         <Space
             android:layout_width="0dp"
-            android:layout_height="16dp"/>
+            android:layout_height="12dp"/>
+
+        <RadioGroup
+            android:id="@+id/rgRole"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <RadioButton
+                android:id="@+id/rbStudent"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Öğrenci"
+                android:checked="true"
+                android:textColor="@color/academic_text_primary"/>
+            <Space
+                android:layout_width="16dp"
+                android:layout_height="0dp"/>
+            <RadioButton
+                android:id="@+id/rbTeacher"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Öğretmen"
+                android:textColor="@color/academic_text_primary"/>
+        </RadioGroup>
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="12dp"/>
 
         <EditText
             android:id="@+id/etEmail"

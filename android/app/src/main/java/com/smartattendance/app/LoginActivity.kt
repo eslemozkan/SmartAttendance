@@ -83,6 +83,13 @@ class LoginActivity : AppCompatActivity() {
             val intent = Intent(this, SignupActivity::class.java)
             startActivity(intent)
         }
+
+        // Teacher signup link
+        binding.tvTeacherSignupLink.setOnClickListener {
+            val intent = Intent(this, SignupActivity::class.java)
+            intent.putExtra("prefill_role", "teacher")
+            startActivity(intent)
+        }
     }
 
     private fun performStudentLogin(email: String, password: String) {
@@ -91,6 +98,15 @@ class LoginActivity : AppCompatActivity() {
         
         lifecycleScope.launch {
             try {
+                // Allow dummy admin/admin for homework convenience
+                if (email == "admin" && password == "admin") {
+                    val intent = Intent(this@LoginActivity, StudentActivity::class.java)
+                    intent.putExtra("user_type", "student")
+                    intent.putExtra("email", email)
+                    startActivity(intent)
+                    finish()
+                    return@launch
+                }
                 // Supabase REST API ile login yap
                 val success = api.studentLogin(email, password)
                 
@@ -112,8 +128,8 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun performTeacherLogin(email: String, password: String) {
-        // Teacher için geçici olarak basit validation
-        if (email.contains("@") && password.isNotEmpty()) {
+        // Allow dummy admin/admin or simple validation
+        if ((email == "admin" && password == "admin") || (email.contains("@") && password.isNotEmpty())) {
             val intent = Intent(this, TeacherActivity::class.java)
             intent.putExtra("user_type", "teacher")
             intent.putExtra("email", email)

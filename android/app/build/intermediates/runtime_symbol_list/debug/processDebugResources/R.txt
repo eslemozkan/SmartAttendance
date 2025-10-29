@@ -3598,12 +3598,15 @@ int id rb15min 0x7f08018a
 int id rb30min 0x7f08018b
 int id rb5min 0x7f08018c
 int id rb60min 0x7f08018d
+int id rbStudent 0x7f080243
+int id rbTeacher 0x7f080244
 int id rectangles 0x7f08018e
 int id recycler_view_attendance 0x7f08018f
 int id recycler_view_weeks 0x7f080190
 int id report_drawn 0x7f080191
 int id reverseSawtooth 0x7f080192
 int id rgDuration 0x7f080193
+int id rgRole 0x7f080245
 int id right 0x7f080194
 int id rightToLeft 0x7f080195
 int id right_icon 0x7f080196
@@ -3728,6 +3731,7 @@ int id tvRoleSubtitle 0x7f08020c
 int id tvRoleTitle 0x7f08020d
 int id tvSignupLink 0x7f080242
 int id tvStatus 0x7f08020e
+int id tvTeacherSignupLink 0x7f080246
 int id tvTitle 0x7f08020f
 int id tvWelcome 0x7f080210
 int id tv_attendance_time 0x7f080237

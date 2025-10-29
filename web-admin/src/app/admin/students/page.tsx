@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Plus, Edit, Trash2, Search, ArrowLeft } from 'lucide-react'
+import { Plus, Edit, Trash2, Search, ArrowLeft, Upload } from 'lucide-react'
 
 export default function StudentManagement() {
   const [students, setStudents] = useState<any[]>([])
@@ -10,8 +10,11 @@ export default function StudentManagement() {
   const [departments, setDepartments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [showCSVForm, setShowCSVForm] = useState(false)
   const [editingStudent, setEditingStudent] = useState<any>(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [csvFile, setCsvFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
 
   const [formData, setFormData] = useState({
     full_name: '',
@@ -133,6 +136,78 @@ export default function StudentManagement() {
     }
   }
 
+  const handleCSVUpload = async () => {
+    if (!csvFile) {
+      alert('Lütfen bir CSV dosyası seçin')
+      return
+    }
+
+    setUploading(true)
+    try {
+      const text = await csvFile.text()
+      const lines = text.split('\n').filter(line => line.trim())
+      
+      // İlk satırı atla (header)
+      const dataLines = lines.slice(1)
+      
+      const studentsToAdd = []
+      let successCount = 0
+      let errorCount = 0
+
+      for (const line of dataLines) {
+        if (!line.trim()) continue
+        
+        const [email, full_name, department_code, class_name] = line.split(',').map(s => s.trim().replace(/"/g, ''))
+        
+        if (!email || !full_name) continue
+
+        // Bölümü bul
+        const dept = departments.find(d => d.code === department_code)
+        if (!dept) {
+          console.error(`Bölüm bulunamadı: ${department_code}`)
+          errorCount++
+          continue
+        }
+
+        // Sınıfı bul
+        const cls = classes.find(c => c.name === class_name && c.department_id === dept.id)
+        if (!cls) {
+          console.error(`Sınıf bulunamadı: ${class_name} (${department_code})`)
+          errorCount++
+          continue
+        }
+
+        studentsToAdd.push({
+          email,
+          full_name,
+          department_id: dept.id,
+          class_id: cls.id,
+          is_active: true
+        })
+      }
+
+      // Toplu ekleme
+      if (studentsToAdd.length > 0) {
+        const { error } = await supabase
+          .from('students')
+          .insert(studentsToAdd)
+
+        if (error) throw error
+        successCount = studentsToAdd.length
+      }
+
+      alert(`${successCount} öğrenci eklendi${errorCount > 0 ? `, ${errorCount} hata oluştu` : ''}`)
+      setShowCSVForm(false)
+      setCsvFile(null)
+      loadData()
+    } catch (error) {
+      console.error('CSV yüklenirken hata:', error)
+      alert('Hata: ' + error.message)
+    } finally {
+      setUploading(false)
+    }
+  }
+
   const filteredStudents = students.filter(student =>
     student.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     student.email.toLowerCase().includes(searchTerm.toLowerCase())
@@ -168,13 +243,22 @@ export default function StudentManagement() {
                 <p className="text-academic-text-secondary">Öğrenci ekleme, düzenleme ve silme işlemleri</p>
               </div>
             </div>
-            <button 
-              onClick={() => setShowForm(true)}
-              className="btn-primary flex items-center space-x-2"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Yeni Öğrenci</span>
-            </button>
+            <div className="flex space-x-2">
+              <button 
+                onClick={() => setShowCSVForm(true)}
+                className="btn-outline flex items-center space-x-2"
+              >
+                <Upload className="w-4 h-4" />
+                <span>CSV Yükle</span>
+              </button>
+              <button 
+                onClick={() => setShowForm(true)}
+                className="btn-primary flex items-center space-x-2"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Yeni Öğrenci</span>
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -255,6 +339,58 @@ export default function StudentManagement() {
             </table>
           </div>
         </div>
+
+        {/* CSV Upload Modal */}
+        {showCSVForm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-academic-surface rounded-lg p-6 w-full max-w-md mx-4">
+              <h3 className="text-lg font-semibold text-academic-text-primary mb-4">
+                CSV ile Öğrenci Yükle
+              </h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-academic-text-primary mb-2">
+                    CSV Dosyası Seç
+                  </label>
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+                    className="input-field"
+                  />
+                  <p className="text-sm text-academic-text-secondary mt-2">
+                    CSV formatı: email,full_name,department_code,class_name
+                  </p>
+                  <p className="text-xs text-academic-text-secondary mt-1">
+                    Örnek: ahmet@example.com,Ahmet Yılmaz,BM,1-A
+                  </p>
+                </div>
+
+                <div className="flex space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={handleCSVUpload}
+                    disabled={!csvFile || uploading}
+                    className="btn-primary flex-1 disabled:opacity-50"
+                  >
+                    {uploading ? 'Yükleniyor...' : 'Yükle'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCSVForm(false)
+                      setCsvFile(null)
+                    }}
+                    className="btn-secondary flex-1"
+                  >
+                    İptal
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Add/Edit Form Modal */}
         {showForm && (

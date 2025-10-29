@@ -3599,12 +3599,15 @@ id rb15min
 id rb30min
 id rb5min
 id rb60min
+id rbStudent
+id rbTeacher
 id rectangles
 id recycler_view_attendance
 id recycler_view_weeks
 id report_drawn
 id reverseSawtooth
 id rgDuration
+id rgRole
 id right
 id rightToLeft
 id right_icon
@@ -3729,6 +3732,7 @@ id tvRoleSubtitle
 id tvRoleTitle
 id tvSignupLink
 id tvStatus
+id tvTeacherSignupLink
 id tvTitle
 id tvWelcome
 id tv_attendance_time

@@ -150,6 +150,43 @@ class ApiService {
             StudentSignupResult(false, "network_error")
         }
     }
+
+    suspend fun teacherSignup(email: String, password: String): StudentSignupResult {
+        return try {
+            val payload = """{"email":"$email","password":"$password"}"""
+            val url = "$functionsBaseUrl/teacher-signup"
+            android.util.Log.d("ApiService", "Teacher Signup URL: $url")
+            android.util.Log.d("ApiService", "Signup Payload: $payload")
+            android.util.Log.d("ApiService", "Anon Key: ${anonKey.take(20)}...")
+
+            val httpRequest = Request.Builder()
+                .url(url)
+                .post(payload.toRequestBody("application/json".toMediaType()))
+                .addHeader("Content-Type", "application/json")
+                .addHeader("Authorization", "Bearer $anonKey")
+                .addHeader("apikey", anonKey)
+                .build()
+
+            val response = withContext(Dispatchers.IO) {
+                client.newCall(httpRequest).execute()
+            }
+            val body = response.body?.string()
+            android.util.Log.d("ApiService", "Teacher Signup Response Code: ${response.code}")
+            android.util.Log.d("ApiService", "Teacher Signup Response Body: $body")
+
+            if (response.isSuccessful) {
+                val result = moshi.adapter(StudentSignupResult::class.java).fromJson(body)
+                result ?: StudentSignupResult(false, "parse_error")
+            } else {
+                val errorResult = moshi.adapter(StudentSignupResult::class.java).fromJson(body)
+                errorResult ?: StudentSignupResult(false, "http_error_${response.code}")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("ApiService", "teacherSignup error: ${e.javaClass.simpleName} - ${e.message}", e)
+            android.util.Log.e("ApiService", "Stack trace: ${e.stackTraceToString()}")
+            StudentSignupResult(false, "network_error")
+        }
+    }
     
     suspend fun studentLogin(email: String, password: String): Boolean {
         return try {
