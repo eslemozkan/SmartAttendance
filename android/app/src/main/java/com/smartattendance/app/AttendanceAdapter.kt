@@ -37,11 +37,21 @@ class AttendanceAdapter : RecyclerView.Adapter<AttendanceAdapter.AttendanceViewH
         fun bind(record: AttendanceRecord) {
             tvStudentName.text = record.profiles?.fullName ?: "Bilinmeyen Öğrenci"
             
-            val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
             val time = try {
-                timeFormat.format(Date(record.markedAt))
+                // Handle ISO (with T/Z) and Postgres (space + offset) formats
+                val str = record.markedAt
+                val parsed = try {
+                    java.time.Instant.parse(str)
+                } catch (e: Exception) {
+                    // Convert "YYYY-MM-DD HH:MM:SS+00" to ISO by replacing space with 'T'
+                    val fixed = str.replace(' ', 'T')
+                    java.time.OffsetDateTime.parse(fixed)
+                        .toInstant()
+                }
+                val zdt = parsed.atZone(java.time.ZoneId.systemDefault())
+                java.time.format.DateTimeFormatter.ofPattern("HH:mm").format(zdt)
             } catch (e: Exception) {
-                record.markedAt.substring(11, 16)
+                try { record.markedAt.substring(11, 16) } catch (_: Exception) { record.markedAt }
             }
             
             tvAttendanceTime.text = "Saat: $time - ${record.method}"

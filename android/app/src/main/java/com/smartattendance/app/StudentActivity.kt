@@ -158,9 +158,9 @@ class StudentActivity : AppCompatActivity() {
         
         lifecycleScope.launch {
             try {
-                // Sabit bir student ID kullan (test için)
-                val studentId = "550e8400-e29b-41d4-a716-446655440002"
-                val ok = apiService.validateQRCode(qrData, studentId) == true
+                // Girişte gelen email'i kullan (server email'den profile id çözer)
+                val email = intent.getStringExtra("email") ?: ""
+                val ok = apiService.validateQRCode(qrData, email) == true
 
                 runOnUiThread {
                     if (ok) {

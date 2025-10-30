@@ -39,7 +39,8 @@ data class ValidateQRRequest(
     @Json(name = "week_number") val weekNumber: Int,
     @Json(name = "created_at") val createdAt: String,
     @Json(name = "expire_after") val expireAfter: Int,
-    @Json(name = "student_id") val studentId: String
+    @Json(name = "student_id") val studentId: String,
+    @Json(name = "student_email") val studentEmail: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -68,6 +69,15 @@ data class GetAttendanceResponse(
 )
 
 @JsonClass(generateAdapter = true)
+data class TeacherAssignedCourse(
+    @Json(name = "assignment_id") val assignmentId: String?,
+    @Json(name = "teacher_email") val teacherEmail: String?,
+    @Json(name = "course_id") val courseId: Long?,
+    @Json(name = "course_name") val courseName: String?,
+    @Json(name = "course_code") val courseCode: String?
+)
+
+@JsonClass(generateAdapter = true)
 data class StudentSignupResult(
     val ok: Boolean,
     val error: String? = null,
@@ -89,6 +99,7 @@ class ApiService {
     private val functionsBaseUrl = "https://oubvhffqbsxsnbtinzbl.functions.supabase.co"
     // Supabase anon public key (should be moved to secure storage for production)
     private val anonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91YnZoZmZxYnN4c25idGluemJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4ODk4NzksImV4cCI6MjA3NjQ2NTg3OX0.kn6pYhbOFWBywNrenjZI9ZUPpOnwKugbIqZkOFcGrnI"
+    private val restBaseUrl = "https://oubvhffqbsxsnbtinzbl.supabase.co/rest/v1"
     
     suspend fun checkStudentWhitelist(email: String): Boolean {
         return try {
@@ -148,6 +159,30 @@ class ApiService {
             android.util.Log.e("ApiService", "studentSignup error: ${e.javaClass.simpleName} - ${e.message}", e)
             android.util.Log.e("ApiService", "Stack trace: ${e.stackTraceToString()}")
             StudentSignupResult(false, "network_error")
+        }
+    }
+
+    suspend fun getAssignedCoursesForTeacher(email: String): List<TeacherAssignedCourse>? {
+        return try {
+            val encoded = java.net.URLEncoder.encode(email, "UTF-8")
+            val url = "$restBaseUrl/teacher_assigned_courses?select=assignment_id,teacher_email,course_id,course_name,course_code&teacher_email=eq.$encoded"
+            val httpRequest = Request.Builder()
+                .url(url)
+                .get()
+                .addHeader("apikey", anonKey)
+                .addHeader("Authorization", "Bearer $anonKey")
+                .build()
+            val response = withContext(Dispatchers.IO) {
+                client.newCall(httpRequest).execute()
+            }
+            val body = response.body?.string()
+            android.util.Log.d("ApiService", "AssignedCourses Code: ${response.code} Body: ${body?.take(200)}")
+            if (!response.isSuccessful || body.isNullOrEmpty()) return null
+            val type = com.squareup.moshi.Types.newParameterizedType(List::class.java, TeacherAssignedCourse::class.java)
+            moshi.adapter<List<TeacherAssignedCourse>>(type).fromJson(body)
+        } catch (e: Exception) {
+            android.util.Log.e("ApiService", "getAssignedCoursesForTeacher error: ${e.message}", e)
+            null
         }
     }
 
@@ -244,10 +279,10 @@ class ApiService {
         }
     }
     
-    suspend fun validateQRCode(qrDataString: String, studentId: String): Boolean? {
+    suspend fun validateQRCode(qrDataString: String, studentEmail: String): Boolean? {
         return try {
             android.util.Log.d("ApiService", "QR Data String: $qrDataString")
-            android.util.Log.d("ApiService", "Student ID: $studentId")
+            android.util.Log.d("ApiService", "Student Email: $studentEmail")
             
             // Parse QR data string (assuming it's JSON)
             val qrData = moshi.adapter(QRData::class.java).fromJson(qrDataString)
@@ -259,7 +294,8 @@ class ApiService {
                     weekNumber = qrData.weekNumber,
                     createdAt = qrData.createdAt,
                     expireAfter = qrData.expireAfter,
-                    studentId = studentId
+                    studentId = "",
+                    studentEmail = studentEmail
                 )
                 
                 val json = moshi.adapter(ValidateQRRequest::class.java).toJson(request)

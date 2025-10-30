@@ -12,13 +12,11 @@ import kotlinx.coroutines.launch
 class AttendanceListActivity : AppCompatActivity() {
     private lateinit var binding: ActivityAttendanceListBinding
     private lateinit var supabaseService: SupabaseService
+    private val apiService = ApiService()
     private lateinit var weekAdapter: WeekAdapter
     private lateinit var attendanceAdapter: AttendanceAdapter
     
-    private val courses = listOf(
-        Course(1, "Veri Yapıları ve Algoritmalar", "CS201", "Pazartesi 09:00-11:00"),
-        Course(2, "Veritabanı Yönetim Sistemleri", "CS301", "Salı 13:00-15:00"),
-        Course(3, "Yazılım Mühendisliği", "CS401", "Çarşamba 10:00-12:00"),
+    private var courses: List<Course> = listOf(
         Course(4, "Ders Yok", "N/A", "Bu hafta ders yapılmayacak")
     )
     
@@ -33,21 +31,36 @@ class AttendanceListActivity : AppCompatActivity() {
         
         supabaseService = SupabaseService()
         setupUI()
+
+        // Load assigned courses for this teacher by email (if provided)
+        val email = intent.getStringExtra("email") ?: ""
+        if (email.isNotBlank()) {
+            lifecycleScope.launch {
+                val assigned = apiService.getAssignedCoursesForTeacher(email)
+                val mapped: List<Course> = (assigned ?: emptyList()).mapNotNull { row ->
+                    val id = row.courseId?.toInt() ?: return@mapNotNull null
+                    val name = row.courseName ?: return@mapNotNull null
+                    val code = row.courseCode ?: ""
+                    Course(id, name, code, "")
+                }
+                if (mapped.isNotEmpty()) {
+                    courses = mapped + courses.filter { it.id == 4 }
+                    runOnUiThread { setupCourseSpinner() }
+                }
+            }
+        }
     }
     
-    private fun setupUI() {
-        // Setup course spinner
+    private fun setupCourseSpinner() {
         val courseAdapter = CustomSpinnerAdapter(
             this,
-            courses.map { "${it.name} (${it.code})" }
-            // Default color (#424242) kullanılacak - daha açık gri
+            courses.map { if (it.code.isNotBlank()) "${it.name} (${it.code})" else it.name }
         )
         binding.spinnerCourse.adapter = courseAdapter
-        
         binding.spinnerCourse.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
                 selectedCourse = courses[position]
-                if (selectedCourse?.id != 4) { // Not "Ders Yok"
+                if (selectedCourse?.id != 4) {
                     loadWeeksForCourse(selectedCourse!!)
                 } else {
                     weeksWithQR = emptyList()
@@ -56,6 +69,11 @@ class AttendanceListActivity : AppCompatActivity() {
             }
             override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
         }
+    }
+
+    private fun setupUI() {
+        // Setup course spinner
+        setupCourseSpinner()
         
         // Setup week RecyclerView
         weekAdapter = WeekAdapter { week ->

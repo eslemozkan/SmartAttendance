@@ -24,11 +24,8 @@ class TeacherActivity : AppCompatActivity() {
     private lateinit var binding: ActivityTeacherBinding
     private val apiService = ApiService()
     
-    // Dummy data
-    private val courses = listOf(
-        Course(1, "Veri Yapıları ve Algoritmalar", "CS201", "Pazartesi 09:00-11:00"),
-        Course(2, "Yazılım Mühendisliği", "CS301", "Salı 13:00-15:00"),
-        Course(3, "Veritabanı Sistemleri", "CS401", "Çarşamba 10:00-12:00"),
+    // Dynamic courses loaded from Supabase (fallback includes "Ders Yok")
+    private var courses: List<Course> = listOf(
         Course(4, "Ders Yok", "", "")
     )
     
@@ -69,9 +66,26 @@ class TeacherActivity : AppCompatActivity() {
 
         // Get user info from login
         val userType = intent.getStringExtra("user_type") ?: "teacher"
-        val email = intent.getStringExtra("email") ?: "admin"
+        val email = intent.getStringExtra("email") ?: ""
 
         setupUI()
+
+        // Load assigned courses for this teacher by email (if available)
+        if (email.isNotBlank()) {
+            lifecycleScope.launch {
+                val assigned = apiService.getAssignedCoursesForTeacher(email)
+                val mapped: List<Course> = (assigned ?: emptyList()).mapNotNull { row ->
+                    val id = row.courseId?.toInt() ?: return@mapNotNull null
+                    val name = row.courseName ?: return@mapNotNull null
+                    val code = row.courseCode ?: ""
+                    Course(id, name, code, "")
+                }
+                if (mapped.isNotEmpty()) {
+                    courses = mapped + courses.filter { it.id == 4 }
+                    runOnUiThread { setupCourseSpinner() }
+                }
+            }
+        }
     }
 
     private fun setupUI() {
@@ -98,7 +112,12 @@ class TeacherActivity : AppCompatActivity() {
         
         // Attendance control
         binding.btnViewAttendance.setOnClickListener {
-            startActivity(Intent(this, AttendanceListActivity::class.java))
+            val email = intent.getStringExtra("email") ?: ""
+            val go = Intent(this, AttendanceListActivity::class.java)
+            if (email.isNotBlank()) {
+                go.putExtra("email", email)
+            }
+            startActivity(go)
         }
         
         // Navigation
@@ -110,8 +129,7 @@ class TeacherActivity : AppCompatActivity() {
     private fun setupCourseSpinner() {
         val courseAdapter = CustomSpinnerAdapter(
             this,
-            courses.map { "${it.name} (${it.code})" }
-            // Default color (#424242) kullanılacak - daha açık gri
+            courses.map { if (it.code.isNotBlank()) "${it.name} (${it.code})" else it.name }
         )
         binding.spinnerCourse.adapter = courseAdapter
         
