@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { ArrowLeft, Plus, Check, X } from 'lucide-react'
+import { ArrowLeft, Plus, Check, X, Edit, Trash2 } from 'lucide-react'
 
 type Department = { id: string; name: string; code: string }
 type Teacher = { id: string; full_name: string; email: string; department_id: string }
@@ -18,6 +18,7 @@ export default function CoursesManagementPage() {
   const [assignments, setAssignments] = useState<Record<string, TeacherCourse[]>>({})
   const [loading, setLoading] = useState(true)
   const [creatingCourse, setCreatingCourse] = useState(false)
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null)
   const [newCourse, setNewCourse] = useState({ name: '', code: '' })
 
   useEffect(() => {
@@ -75,60 +76,6 @@ export default function CoursesManagementPage() {
     setLoading(false)
   }
 
-  function getDefaultCoursesForDepartment(dept?: Department): { name: string; code: string }[] {
-    if (!dept) return []
-    const name = (dept.name || '').toLowerCase()
-    const code = (dept.code || '').toUpperCase()
-    if (code === 'YAZ' || name.includes('yazılım')) {
-      return [
-        { name: 'Algoritmalar', code: 'YAZM101' },
-        { name: 'Veri Yapıları', code: 'YAZM102' },
-        { name: 'Veritabanı Sistemleri', code: 'YAZM201' },
-        { name: 'Web Programlama', code: 'YAZM202' },
-      ]
-    }
-    if (code === 'CENG' || name.includes('bilgisayar')) {
-      return [
-        { name: 'Programlamaya Giriş', code: 'CENG101' },
-        { name: 'Sayısal Mantık', code: 'CENG103' },
-        { name: 'İşletim Sistemleri', code: 'CENG301' },
-        { name: 'Ağ Teknolojileri', code: 'CENG302' },
-      ]
-    }
-    if (code === 'EEE' || name.includes('elektrik')) {
-      return [
-        { name: 'Devre Analizi', code: 'EEE101' },
-        { name: 'Elektronik I', code: 'EEE201' },
-        { name: 'Sinyaller ve Sistemler', code: 'EEE202' },
-      ]
-    }
-    if (code === 'IE' || name.includes('endüstri')) {
-      return [
-        { name: 'Yöneylem Araştırması', code: 'IE201' },
-        { name: 'Üretim Planlama', code: 'IE301' },
-      ]
-    }
-    // Fallback generic set
-    return [
-      { name: 'Giriş Dersi', code: 'GEN101' },
-      { name: 'İleri Konular', code: 'GEN201' },
-    ]
-  }
-
-  async function seedDefaultsForSelectedDepartment() {
-    if (!selectedDeptId) return
-    const dept = departments.find(d => d.id === selectedDeptId)
-    const defaults = getDefaultCoursesForDepartment(dept)
-    if (defaults.length === 0) return
-    const payload = defaults.map(d => ({ name: d.name, code: d.code, department_id: selectedDeptId }))
-    const { error } = await supabase.from('courses').insert(payload)
-    if (error) {
-      alert('Örnek dersler eklenemedi: ' + error.message)
-      return
-    }
-    await loadTeachersAndCourses(selectedDeptId)
-  }
-
   async function addCourse(departmentId: string) {
     if (!newCourse.name.trim()) return
     const { error } = await supabase.from('courses').insert([
@@ -141,6 +88,63 @@ export default function CoursesManagementPage() {
     setNewCourse({ name: '', code: '' })
     setCreatingCourse(false)
     await loadTeachersAndCourses(departmentId)
+  }
+
+  async function updateCourse(courseId: number | string, departmentId: string) {
+    if (!newCourse.name.trim()) return
+    const { error } = await supabase
+      .from('courses')
+      .update({ name: newCourse.name.trim(), code: newCourse.code.trim() || null })
+      .eq('id', courseId)
+    if (error) {
+      alert('Ders güncellenemedi: ' + error.message)
+      return
+    }
+    setNewCourse({ name: '', code: '' })
+    setEditingCourse(null)
+    setCreatingCourse(false)
+    await loadTeachersAndCourses(departmentId)
+  }
+
+  function handleEdit(course: Course) {
+    setEditingCourse(course)
+    setNewCourse({ name: course.name, code: course.code || '' })
+    setCreatingCourse(false)
+  }
+
+  function handleCancelEdit() {
+    setEditingCourse(null)
+    setNewCourse({ name: '', code: '' })
+    setCreatingCourse(false)
+  }
+
+  async function handleDelete(courseId: number | string) {
+    if (!confirm('Bu dersi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz ve dersin tüm atamaları silinecektir.')) return
+
+    try {
+      // Önce teacher_courses'dan ilgili atamaları sil
+      const { error: assignError } = await supabase
+        .from('teacher_courses')
+        .delete()
+        .eq('course_id', courseId)
+      
+      if (assignError) {
+        console.warn('Atamalar silinirken hata:', assignError)
+      }
+
+      // Sonra dersi sil
+      const { error } = await supabase
+        .from('courses')
+        .delete()
+        .eq('id', courseId)
+
+      if (error) throw error
+      
+      if (selectedDeptId) await loadTeachersAndCourses(selectedDeptId)
+    } catch (error: any) {
+      console.error('Ders silinirken hata:', error)
+      alert('Hata: ' + error.message)
+    }
   }
 
   async function assignCourse(teacherId: string, courseId: string) {
@@ -220,7 +224,7 @@ export default function CoursesManagementPage() {
             </div>
             {selectedDeptId && (
               <div className="flex-1">
-                {!creatingCourse ? (
+                {!creatingCourse && !editingCourse ? (
                   <button className="btn-primary" onClick={() => setCreatingCourse(true)}>
                     <Plus className="w-4 h-4 inline mr-2" /> Yeni Ders Ekle
                   </button>
@@ -244,10 +248,13 @@ export default function CoursesManagementPage() {
                         placeholder="CSE101"
                       />
                     </div>
-                    <button className="btn-primary" onClick={() => addCourse(selectedDeptId)}>
+                    <button 
+                      className="btn-primary" 
+                      onClick={() => editingCourse ? updateCourse(editingCourse.id, selectedDeptId) : addCourse(selectedDeptId)}
+                    >
                       <Check className="w-4 h-4" />
                     </button>
-                    <button className="btn-secondary" onClick={() => { setCreatingCourse(false); setNewCourse({ name: '', code: '' }) }}>
+                    <button className="btn-secondary" onClick={handleCancelEdit}>
                       <X className="w-4 h-4" />
                     </button>
                   </div>
@@ -263,18 +270,45 @@ export default function CoursesManagementPage() {
             <div className="card">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-academic-text-primary">{selectedDept.name} Dersleri</h2>
-                {courses.length === 0 && (
-                  <button className="btn-secondary" onClick={seedDefaultsForSelectedDepartment}>Örnek Dersleri Ekle</button>
-                )}
               </div>
               {courses.length === 0 ? (
                 <p className="text-academic-text-secondary">Bu bölümde henüz ders yok.</p>
               ) : (
-                <ul className="list-disc pl-6 text-academic-text-primary">
+                <div className="space-y-2">
                   {courses.map(c => (
-                    <li key={c.id}>{c.name}{c.code ? ` (${c.code})` : ''}</li>
+                    <div 
+                      key={c.id} 
+                      className={`flex items-center justify-between p-3 rounded-md border ${
+                        editingCourse?.id === c.id 
+                          ? 'border-academic-primary bg-academic-primary-light' 
+                          : 'border-academic-divider bg-academic-surface'
+                      }`}
+                    >
+                      <div className="flex-1">
+                        <span className="text-academic-text-primary font-medium">
+                          {c.name}
+                          {c.code && <span className="text-academic-text-secondary ml-2">({c.code})</span>}
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => handleEdit(c)}
+                          className="p-2 text-academic-primary hover:bg-academic-primary-light rounded-md transition-colors"
+                          title="Düzenle"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(c.id)}
+                          className="p-2 text-academic-error hover:bg-academic-error-light rounded-md transition-colors"
+                          title="Sil"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
                   ))}
-                </ul>
+                </div>
               )}
             </div>
 

@@ -38,10 +38,11 @@ export default function StudentManagement() {
         `)
         .order('created_at', { ascending: false })
 
-      // Sınıfları yükle
+      // Sınıfları yükle (sadece veritabanındaki sınıflar)
       const { data: classesData } = await supabase
         .from('classes')
         .select('*')
+        .order('academic_year', { ascending: false })
         .order('name')
 
       // Bölümleri yükle
@@ -470,7 +471,7 @@ export default function StudentManagement() {
                       .filter(c => c.department_id === formData.department_id)
                       .map((cls) => (
                         <option key={cls.id} value={cls.id}>
-                          {cls.name}
+                          {cls.name} {cls.academic_year ? `(${cls.academic_year})` : ''}
                         </option>
                       ))}
                   </select>
