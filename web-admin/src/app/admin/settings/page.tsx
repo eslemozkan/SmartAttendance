@@ -4,6 +4,18 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { ArrowLeft, Save, Database, Users, GraduationCap, BookOpen, Calendar, Clock, Info } from 'lucide-react'
 
+// Get Supabase URL dynamically
+const getSupabaseUrl = () => {
+  // Use environment variable if available, otherwise use default
+  if (typeof window !== 'undefined') {
+    return process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://oubvhffqbsxsnbtinzbl.supabase.co'
+  }
+  return process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://oubvhffqbsxsnbtinzbl.supabase.co'
+}
+
+// Get version from package.json (will be set at build time)
+const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0'
+
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -53,23 +65,38 @@ export default function SettingsPage() {
         totalAttendances: attendancesCount || 0
       })
 
-      // Load current academic year from classes (most recent)
-      const { data: classesData } = await supabase
-        .from('classes')
-        .select('academic_year')
-        .order('academic_year', { ascending: false })
-        .limit(1)
+      // Load settings from database
+      const { data: settingsData } = await supabase
+        .from('settings')
+        .select('key, value')
+        .in('key', ['current_academic_year', 'current_semester'])
 
-      if (classesData && classesData.length > 0) {
+      if (settingsData && settingsData.length > 0) {
+        const settingsMap = new Map(settingsData.map(s => [s.key, s.value]))
         setSettings(prev => ({
           ...prev,
-          currentAcademicYear: classesData[0].academic_year || getCurrentAcademicYear()
+          currentAcademicYear: settingsMap.get('current_academic_year') || prev.currentAcademicYear,
+          currentSemester: settingsMap.get('current_semester') || prev.currentSemester
         }))
       } else {
-        setSettings(prev => ({
-          ...prev,
-          currentAcademicYear: getCurrentAcademicYear()
-        }))
+        // Fallback: Load current academic year from classes (most recent)
+        const { data: classesData } = await supabase
+          .from('classes')
+          .select('academic_year')
+          .order('academic_year', { ascending: false })
+          .limit(1)
+
+        if (classesData && classesData.length > 0) {
+          setSettings(prev => ({
+            ...prev,
+            currentAcademicYear: classesData[0].academic_year || getCurrentAcademicYear()
+          }))
+        } else {
+          setSettings(prev => ({
+            ...prev,
+            currentAcademicYear: getCurrentAcademicYear()
+          }))
+        }
       }
     } catch (error: any) {
       console.error('Error loading data:', error)
@@ -93,20 +120,36 @@ export default function SettingsPage() {
   async function handleSave() {
     setSaving(true)
     try {
-      // Settings would typically be stored in a settings table
-      // For now, we'll just show a success message
-      // In a real app, you'd save these to a database
+      // Settings'i veritabanına kaydet
+      const updates = [
+        supabase
+          .from('settings')
+          .upsert({ 
+            key: 'current_academic_year', 
+            value: settings.currentAcademicYear,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'key' }),
+        supabase
+          .from('settings')
+          .upsert({ 
+            key: 'current_semester', 
+            value: settings.currentSemester,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'key' })
+      ]
+
+      const results = await Promise.all(updates)
       
-      alert('Ayarlar kaydedildi! (Not: Bu ayarlar şu anda veritabanına kaydedilmiyor, sadece gösterim amaçlı)')
-      
-      // TODO: Implement actual settings save to database
-      // const { error } = await supabase
-      //   .from('settings')
-      //   .upsert({ ...settings, updated_at: new Date().toISOString() })
+      // Hata kontrolü
+      for (const result of results) {
+        if (result.error) throw result.error
+      }
+
+      alert('Ayarlar başarıyla kaydedildi!')
       
     } catch (error: any) {
       console.error('Error saving settings:', error)
-      alert('Ayarlar kaydedilirken hata: ' + error.message)
+      alert('Ayarlar kaydedilirken hata: ' + (error.message || 'Bilinmeyen bir hata oluştu'))
     } finally {
       setSaving(false)
     }
@@ -207,12 +250,12 @@ export default function SettingsPage() {
                 <div className="flex items-center justify-between p-3 bg-academic-surface rounded-md">
                   <span className="text-sm text-academic-text-secondary">Supabase URL</span>
                   <span className="text-xs text-academic-text-primary font-mono">
-                    oubvhffqbsxsnbtinzbl.supabase.co
+                    {getSupabaseUrl().replace('https://', '')}
                   </span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-academic-surface rounded-md">
                   <span className="text-sm text-academic-text-secondary">Sistem Versiyonu</span>
-                  <span className="text-xs text-academic-text-primary">v1.0.0</span>
+                  <span className="text-xs text-academic-text-primary">v{APP_VERSION}</span>
                 </div>
               </div>
             </div>

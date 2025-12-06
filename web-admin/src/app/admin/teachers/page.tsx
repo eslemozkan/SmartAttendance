@@ -58,15 +58,36 @@ export default function TeacherManagement() {
     e.preventDefault()
     
     try {
-      // Teacher kaydı profiles tablosuna eklenir
-      const { error } = await supabase
-        .from('profiles')
-        .insert([{
-          ...formData,
-          role: 'teacher'
-        }])
+      if (editingTeacher) {
+        // Güncelleme
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            full_name: formData.full_name,
+            email: formData.email,
+            department_id: formData.department_id
+          })
+          .eq('id', editingTeacher.id)
 
-      if (error) throw error
+        if (error) throw error
+      } else {
+        // Yeni ekleme: duplicate email kontrolü
+        const { data: exists } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', formData.email)
+          .maybeSingle()
+        if (exists) throw new Error('Bu email ile öğretmen zaten kayıtlı')
+
+        const { error } = await supabase
+          .from('profiles')
+          .insert([{
+            ...formData,
+            role: 'teacher'
+          }])
+
+        if (error) throw error
+      }
 
       // Formu sıfırla
       setFormData({
@@ -77,9 +98,9 @@ export default function TeacherManagement() {
       setShowForm(false)
       setEditingTeacher(null)
       loadData()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Öğretmen kaydedilirken hata:', error)
-      alert('Hata: ' + error.message)
+      alert('Hata: ' + (error.message || 'Bilinmeyen bir hata oluştu'))
     }
   }
 
