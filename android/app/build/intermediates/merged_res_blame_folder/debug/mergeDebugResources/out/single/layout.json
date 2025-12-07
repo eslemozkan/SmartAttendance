@@ -4,12 +4,28 @@
         "source": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-main-45:\\layout\\activity_teacher.xml"
     },
     {
+        "merged": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-mergeDebugResources-42:\\layout\\item_student_course.xml",
+        "source": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-main-45:\\layout\\item_student_course.xml"
+    },
+    {
+        "merged": "com.smartattendance.app-mergeDebugResources-42:/layout/item_student_course.xml",
+        "source": "com.smartattendance.app-main-45:/layout/item_student_course.xml"
+    },
+    {
         "merged": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-mergeDebugResources-42:\\layout\\item_attendance.xml",
         "source": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-main-45:\\layout\\item_attendance.xml"
     },
     {
         "merged": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-mergeDebugResources-42:\\layout\\activity_signup.xml",
         "source": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-main-45:\\layout\\activity_signup.xml"
+    },
+    {
+        "merged": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-mergeDebugResources-42:\\layout\\activity_student_attendance_status.xml",
+        "source": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-main-45:\\layout\\activity_student_attendance_status.xml"
+    },
+    {
+        "merged": "com.smartattendance.app-mergeDebugResources-42:/layout/activity_student.xml",
+        "source": "com.smartattendance.app-main-45:/layout/activity_student.xml"
     },
     {
         "merged": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-mergeDebugResources-42:\\layout\\spinner_item.xml",
@@ -20,12 +36,12 @@
         "source": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-main-45:\\layout\\activity_student.xml"
     },
     {
-        "merged": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-mergeDebugResources-42:\\layout\\activity_main.xml",
-        "source": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-main-45:\\layout\\activity_main.xml"
+        "merged": "com.smartattendance.app-mergeDebugResources-42:/layout/activity_student_attendance_status.xml",
+        "source": "com.smartattendance.app-main-45:/layout/activity_student_attendance_status.xml"
     },
     {
-        "merged": "com.smartattendance.app-mergeDebugResources-42:/layout/activity_login.xml",
-        "source": "com.smartattendance.app-main-45:/layout/activity_login.xml"
+        "merged": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-mergeDebugResources-42:\\layout\\activity_main.xml",
+        "source": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-main-45:\\layout\\activity_main.xml"
     },
     {
         "merged": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-mergeDebugResources-42:\\layout\\item_week.xml",

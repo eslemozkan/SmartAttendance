@@ -87,9 +87,10 @@ data class StudentSignupResult(
 
 class ApiService {
     private val client = OkHttpClient.Builder()
-        .connectTimeout(60, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
-        .writeTimeout(60, TimeUnit.SECONDS)
+        .connectTimeout(120, TimeUnit.SECONDS)
+        .readTimeout(120, TimeUnit.SECONDS)
+        .writeTimeout(120, TimeUnit.SECONDS)
+        .retryOnConnectionFailure(true)
         .build()
     
     private val moshi = Moshi.Builder()
@@ -440,6 +441,490 @@ class ApiService {
             }
         } catch (e: Exception) {
             android.util.Log.e("ApiService", "Exception in getAttendanceForWeek: ${e.message}", e)
+            null
+        }
+    }
+    
+    // Öğrencinin yoklama durumunu çek (tüm dersler ve haftalar)
+    suspend fun getStudentAttendanceStatus(studentEmail: String): List<StudentCourseWithWeeks>? {
+        return try {
+            android.util.Log.d("ApiService", "=== getStudentAttendanceStatus START ===")
+            android.util.Log.d("ApiService", "Student email: $studentEmail")
+            
+            // Önce öğrencinin class_id'sini bul
+            val encodedEmail = java.net.URLEncoder.encode(studentEmail, "UTF-8")
+            val studentUrl = "$restBaseUrl/students?select=class_id&email=eq.$encodedEmail"
+            
+            android.util.Log.d("ApiService", "Step 1: Getting student class: $studentUrl")
+            
+            val studentRequest = Request.Builder()
+                .url(studentUrl)
+                .get()
+                .addHeader("apikey", anonKey)
+                .addHeader("Authorization", "Bearer $anonKey")
+                .addHeader("Content-Type", "application/json")
+                .build()
+            
+            val studentResponse = withContext(Dispatchers.IO) {
+                client.newCall(studentRequest).execute()
+            }
+            val studentBody = studentResponse.body?.string()
+            
+            android.util.Log.d("ApiService", "Student response code: ${studentResponse.code}")
+            android.util.Log.d("ApiService", "Student response body: $studentBody")
+            
+            if (!studentResponse.isSuccessful) {
+                android.util.Log.e("ApiService", "Student request failed: ${studentResponse.code} - $studentBody")
+                return emptyList()
+            }
+            
+            if (studentBody.isNullOrEmpty() || studentBody == "[]") {
+                android.util.Log.e("ApiService", "Student not found or empty response: $studentBody")
+                return emptyList()
+            }
+            
+            // Parse student data to get class_id
+            val studentData = moshi.adapter(List::class.java).fromJson(studentBody) as? List<Map<String, Any>>
+            val classId = studentData?.firstOrNull()?.get("class_id")?.toString()
+            
+            if (classId.isNullOrBlank() || classId == "null") {
+                android.util.Log.e("ApiService", "Student has no class_id. Student data: $studentData")
+                return emptyList()
+            }
+            
+            android.util.Log.d("ApiService", "Step 2: Student class_id: $classId")
+            
+            // Öğrencinin profile id'sini bul (attendances için)
+            val profileUrl = "$restBaseUrl/profiles?select=id&email=eq.$encodedEmail"
+            val profileRequest = Request.Builder()
+                .url(profileUrl)
+                .get()
+                .addHeader("apikey", anonKey)
+                .addHeader("Authorization", "Bearer $anonKey")
+                .addHeader("Content-Type", "application/json")
+                .build()
+            
+            val profileResponse = withContext(Dispatchers.IO) {
+                client.newCall(profileRequest).execute()
+            }
+            val profileBody = profileResponse.body?.string()
+            
+            android.util.Log.d("ApiService", "Profile response code: ${profileResponse.code}")
+            android.util.Log.d("ApiService", "Profile response body: $profileBody")
+            
+            val profileData = moshi.adapter(List::class.java).fromJson(profileBody) as? List<Map<String, Any>>
+            val studentProfileId = profileData?.firstOrNull()?.get("id")?.toString()
+            
+            if (studentProfileId.isNullOrBlank() || studentProfileId == "null") {
+                android.util.Log.e("ApiService", "Student profile not found. Profile data: $profileData")
+                return emptyList()
+            }
+            
+            android.util.Log.d("ApiService", "Step 3: Student profile_id: $studentProfileId")
+            
+            // ÖNEMLİ: Öğrencinin gerçekten yoklama aldığı dersleri bul
+            // attendances tablosundan course_id'leri çek (öğrencinin yoklama aldığı dersler)
+            android.util.Log.d("ApiService", "Step 4: Getting courses from attendances (courses student actually attended)")
+            val attendancesUrl = "$restBaseUrl/attendances?select=course_id,week_number,marked_at&student_id=eq.$studentProfileId"
+            android.util.Log.d("ApiService", "Getting attendances: $attendancesUrl")
+            
+            val attendancesRequest = Request.Builder()
+                .url(attendancesUrl)
+                .get()
+                .addHeader("apikey", anonKey)
+                .addHeader("Authorization", "Bearer $anonKey")
+                .addHeader("Content-Type", "application/json")
+                .build()
+            
+            val attendancesResponse = withContext(Dispatchers.IO) {
+                client.newCall(attendancesRequest).execute()
+            }
+            val attendancesBody = attendancesResponse.body?.string()
+            
+            android.util.Log.d("ApiService", "Attendances response code: ${attendancesResponse.code}")
+            android.util.Log.d("ApiService", "Attendances response body: $attendancesBody")
+            
+            // attendances tablosundan course_id'leri topla
+            val courseIdsFromAttendances = mutableSetOf<Long>()
+            val attendancesByCourse = mutableMapOf<Long, MutableMap<Int, String>>() // courseId -> (weekNumber -> marked_at)
+            
+            if (attendancesResponse.isSuccessful && !attendancesBody.isNullOrEmpty() && attendancesBody != "[]") {
+                val attendancesData = moshi.adapter(List::class.java).fromJson(attendancesBody) as? List<Map<String, Any>>
+                android.util.Log.d("ApiService", "Found ${attendancesData?.size ?: 0} attendance records")
+                
+                attendancesData?.forEach { attendance ->
+                    // course_id'yi al
+                    val courseId = attendance["course_id"]?.let {
+                        when (it) {
+                            is Number -> it.toLong()
+                            is String -> it.toLongOrNull()
+                            else -> null
+                        }
+                    }
+                    
+                    if (courseId != null) {
+                        courseIdsFromAttendances.add(courseId)
+                        
+                        // week_number ve marked_at'i kaydet
+                        val weekNumber = (attendance["week_number"] as? Number)?.toInt()
+                        val markedAt = attendance["marked_at"] as? String
+                        
+                        if (weekNumber != null && markedAt != null) {
+                            if (!attendancesByCourse.containsKey(courseId)) {
+                                attendancesByCourse[courseId] = mutableMapOf()
+                            }
+                            attendancesByCourse[courseId]?.put(weekNumber, markedAt)
+                        }
+                    }
+                }
+            }
+            
+            android.util.Log.d("ApiService", "Found ${courseIdsFromAttendances.size} unique courses from attendances")
+            
+            val result = mutableListOf<StudentCourseWithWeeks>()
+            
+            // Eğer attendances'ten ders bulduysak, onları kullan
+            if (courseIdsFromAttendances.isNotEmpty()) {
+                android.util.Log.d("ApiService", "Using courses from attendances: $courseIdsFromAttendances")
+                
+                // Bu derslerin detaylarını çek
+                val courseIdsStr = courseIdsFromAttendances.joinToString(",")
+                val coursesUrl = "$restBaseUrl/courses?select=id,name,code&id=in.($courseIdsStr)"
+                android.util.Log.d("ApiService", "Step 5: Getting course details: $coursesUrl")
+                
+                val coursesRequest = Request.Builder()
+                    .url(coursesUrl)
+                    .get()
+                    .addHeader("apikey", anonKey)
+                    .addHeader("Authorization", "Bearer $anonKey")
+                    .addHeader("Content-Type", "application/json")
+                    .build()
+                
+                val coursesResponse = withContext(Dispatchers.IO) {
+                    client.newCall(coursesRequest).execute()
+                }
+                val coursesBody = coursesResponse.body?.string()
+                
+                android.util.Log.d("ApiService", "Courses response code: ${coursesResponse.code}")
+                
+                if (coursesResponse.isSuccessful && !coursesBody.isNullOrEmpty() && coursesBody != "[]") {
+                    val coursesData = moshi.adapter(List::class.java).fromJson(coursesBody) as? List<Map<String, Any>>
+                    android.util.Log.d("ApiService", "Parsed ${coursesData?.size ?: 0} courses")
+                    
+                    coursesData?.forEachIndexed { index, course ->
+                        val courseIdValue = course["id"]
+                        val courseId = when (courseIdValue) {
+                            is Number -> courseIdValue.toLong()
+                            is String -> {
+                                android.util.Log.w("ApiService", "Course ID is UUID string, skipping: $courseIdValue")
+                                return@forEachIndexed
+                            }
+                            else -> {
+                                android.util.Log.w("ApiService", "Course ID is unknown type: ${courseIdValue?.javaClass?.simpleName}")
+                                return@forEachIndexed
+                            }
+                        }
+                        
+                        val courseName = course["name"] as? String
+                        if (courseName.isNullOrBlank()) {
+                            android.util.Log.w("ApiService", "Course $index has no name")
+                            return@forEachIndexed
+                        }
+                        
+                        val courseCode = course["code"] as? String
+                        
+                        android.util.Log.d("ApiService", "Course: id=$courseId, name=$courseName, code=$courseCode")
+                        result.add(StudentCourseWithWeeks(
+                            courseId = courseId,
+                            courseName = courseName,
+                            courseCode = courseCode,
+                            weeks = emptyList() // Haftaları daha sonra toplu olarak dolduracağız
+                        ))
+                    }
+                }
+            } else {
+                // Eğer attendances'ten ders bulamadıysak, course_class_assignments'ten al
+                android.util.Log.d("ApiService", "No courses from attendances, trying course_class_assignments")
+                val assignmentsUrl = "$restBaseUrl/course_class_assignments?select=course_id&class_id=eq.$classId&limit=100"
+                android.util.Log.d("ApiService", "Step 4a: Getting course assignments: $assignmentsUrl")
+                
+                val assignmentsRequest = Request.Builder()
+                    .url(assignmentsUrl)
+                    .get()
+                    .addHeader("apikey", anonKey)
+                    .addHeader("Authorization", "Bearer $anonKey")
+                    .addHeader("Content-Type", "application/json")
+                    .addHeader("Prefer", "return=representation")
+                    .build()
+                
+                val assignmentsResponse = try {
+                    withContext(Dispatchers.IO) {
+                        client.newCall(assignmentsRequest).execute()
+                    }
+                } catch (e: java.net.SocketTimeoutException) {
+                    android.util.Log.e("ApiService", "Timeout getting course_class_assignments. This might be an RLS/permission issue.")
+                    android.util.Log.e("ApiService", "Trying alternative approach: query courses directly")
+                    null
+                }
+                
+                val assignmentsBody = assignmentsResponse?.body?.string()
+                android.util.Log.d("ApiService", "Assignments response code: ${assignmentsResponse?.code}")
+                android.util.Log.d("ApiService", "Assignments response body: $assignmentsBody")
+                
+                // Eğer course_class_assignments'e erişilemiyorsa, alternatif yaklaşım dene
+                if (assignmentsResponse == null || !assignmentsResponse.isSuccessful || assignmentsBody.isNullOrEmpty() || assignmentsBody == "[]") {
+                    android.util.Log.w("ApiService", "Could not get course_class_assignments. Trying alternative: get all courses for now")
+                    // Alternatif: Tüm dersleri çek (geçici çözüm - daha sonra düzeltilebilir)
+                    val allCoursesUrl = "$restBaseUrl/courses?select=id,name,code&limit=100"
+                    android.util.Log.d("ApiService", "Step 4b (alternative): Getting all courses: $allCoursesUrl")
+                    
+                    val allCoursesRequest = Request.Builder()
+                        .url(allCoursesUrl)
+                        .get()
+                        .addHeader("apikey", anonKey)
+                        .addHeader("Authorization", "Bearer $anonKey")
+                        .addHeader("Content-Type", "application/json")
+                        .build()
+                    
+                    val allCoursesResponse = withContext(Dispatchers.IO) {
+                        client.newCall(allCoursesRequest).execute()
+                    }
+                    val allCoursesBody = allCoursesResponse.body?.string()
+                    
+                    android.util.Log.d("ApiService", "All courses response code: ${allCoursesResponse.code}")
+                    
+                    if (!allCoursesResponse.isSuccessful || allCoursesBody.isNullOrEmpty() || allCoursesBody == "[]") {
+                        android.util.Log.e("ApiService", "Could not get courses either. Returning empty list.")
+                        return emptyList()
+                    }
+                    
+                    // Parse all courses
+                    val allCoursesData = moshi.adapter(List::class.java).fromJson(allCoursesBody) as? List<Map<String, Any>>
+                    android.util.Log.d("ApiService", "Parsed ${allCoursesData?.size ?: 0} courses (alternative method)")
+                    
+                    // Use all courses as fallback (not ideal, but works for testing)
+                    val coursesData = allCoursesData ?: emptyList()
+                    
+                    // Process courses from alternative method
+                    coursesData.forEachIndexed { index, course ->
+                        android.util.Log.d("ApiService", "Processing course $index: $course")
+                        
+                        // courses.id BIGINT veya UUID olabilir
+                        val courseIdValue = course["id"]
+                        val courseId = when (courseIdValue) {
+                            is Number -> courseIdValue.toLong()
+                            is String -> {
+                                // UUID string ise, Long'a çeviremeyiz, atla
+                                android.util.Log.w("ApiService", "Course ID is UUID string, skipping: $courseIdValue")
+                                return@forEachIndexed
+                            }
+                            else -> {
+                                android.util.Log.w("ApiService", "Course ID is unknown type: ${courseIdValue?.javaClass?.simpleName}")
+                                return@forEachIndexed
+                            }
+                        }
+                        
+                        val courseName = course["name"] as? String
+                        if (courseName.isNullOrBlank()) {
+                            android.util.Log.w("ApiService", "Course $index has no name")
+                            return@forEachIndexed
+                        }
+                        
+                        val courseCode = course["code"] as? String
+                        
+                        android.util.Log.d("ApiService", "Course: id=$courseId, name=$courseName, code=$courseCode")
+                        result.add(StudentCourseWithWeeks(
+                            courseId = courseId,
+                            courseName = courseName,
+                            courseCode = courseCode,
+                            weeks = emptyList() // Haftaları daha sonra toplu olarak dolduracağız
+                        ))
+                    }
+                } else {
+                    // Normal flow: parse course_class_assignments
+                    val assignmentsData = moshi.adapter(List::class.java).fromJson(assignmentsBody) as? List<Map<String, Any>>
+                    val courseIdsFromAssignments = assignmentsData?.mapNotNull { 
+                        val courseId = it["course_id"]
+                        when (courseId) {
+                            is Number -> courseId.toLong()
+                            is String -> courseId.toLongOrNull() // Try to parse UUID as Long (might fail)
+                            else -> null
+                        }
+                    }?.distinct() ?: emptyList()
+                    
+                    android.util.Log.d("ApiService", "Found ${courseIdsFromAssignments.size} unique course IDs from assignments")
+                    
+                    if (courseIdsFromAssignments.isEmpty()) {
+                        android.util.Log.e("ApiService", "No course IDs found in assignments")
+                        return emptyList()
+                    }
+                    
+                    // Get course details using course IDs
+                    val courseIdsStr = courseIdsFromAssignments.joinToString(",")
+                    val coursesUrl = "$restBaseUrl/courses?select=id,name,code&id=in.($courseIdsStr)"
+                    android.util.Log.d("ApiService", "Step 4c: Getting course details: $coursesUrl")
+                    
+                    val coursesRequest = Request.Builder()
+                        .url(coursesUrl)
+                        .get()
+                        .addHeader("apikey", anonKey)
+                        .addHeader("Authorization", "Bearer $anonKey")
+                        .addHeader("Content-Type", "application/json")
+                        .build()
+                    
+                    val coursesResponse = withContext(Dispatchers.IO) {
+                        client.newCall(coursesRequest).execute()
+                    }
+                    val coursesBody = coursesResponse.body?.string()
+                    
+                    android.util.Log.d("ApiService", "Courses response code: ${coursesResponse.code}")
+                    android.util.Log.d("ApiService", "Courses response body: $coursesBody")
+                    
+                    if (!coursesResponse.isSuccessful || coursesBody.isNullOrEmpty() || coursesBody == "[]") {
+                        android.util.Log.e("ApiService", "Courses request failed: ${coursesResponse.code} - $coursesBody")
+                        return emptyList()
+                    }
+                    
+                    // Parse courses
+                    val coursesData = moshi.adapter(List::class.java).fromJson(coursesBody) as? List<Map<String, Any>>
+                    android.util.Log.d("ApiService", "Parsed ${coursesData?.size ?: 0} course assignments")
+                    
+                    coursesData?.forEachIndexed { index, course ->
+                        android.util.Log.d("ApiService", "Processing course $index: $course")
+                        
+                        // courses.id BIGINT veya UUID olabilir
+                        val courseIdValue = course["id"]
+                        val courseId = when (courseIdValue) {
+                            is Number -> courseIdValue.toLong()
+                            is String -> {
+                                // UUID string ise, Long'a çeviremeyiz, atla
+                                android.util.Log.w("ApiService", "Course ID is UUID string, skipping: $courseIdValue")
+                                return@forEachIndexed
+                            }
+                            else -> {
+                                android.util.Log.w("ApiService", "Course ID is unknown type: ${courseIdValue?.javaClass?.simpleName}")
+                                return@forEachIndexed
+                            }
+                        }
+                        
+                        val courseName = course["name"] as? String
+                        if (courseName.isNullOrBlank()) {
+                            android.util.Log.w("ApiService", "Course $index has no name")
+                            return@forEachIndexed
+                        }
+                        
+                        val courseCode = course["code"] as? String
+                        
+                        android.util.Log.d("ApiService", "Course: id=$courseId, name=$courseName, code=$courseCode")
+                        result.add(StudentCourseWithWeeks(
+                            courseId = courseId,
+                            courseName = courseName,
+                            courseCode = courseCode,
+                            weeks = emptyList() // Haftaları daha sonra toplu olarak dolduracağız
+                        ))
+                    }
+                }
+            }
+            
+            // Tüm derslerin ID'lerini topla
+            val courseIds = result.map { it.courseId }
+            if (courseIds.isEmpty()) {
+                android.util.Log.d("ApiService", "No courses found, returning empty list")
+                return result
+            }
+            
+            android.util.Log.d("ApiService", "Step 5: Fetching QR codes for ${courseIds.size} courses")
+            
+            // Tüm QR kodlarını tek bir sorguda çek (course_id IN (...))
+            val courseIdsStr = courseIds.joinToString(",")
+            val qrCodesUrl = "$restBaseUrl/qr_codes?select=course_id,week_number,created_at&course_id=in.($courseIdsStr)&is_active=eq.true&order=course_id,week_number.asc"
+            android.util.Log.d("ApiService", "Getting all QR codes: $qrCodesUrl")
+            
+            val qrCodesRequest = Request.Builder()
+                .url(qrCodesUrl)
+                .get()
+                .addHeader("apikey", anonKey)
+                .addHeader("Authorization", "Bearer $anonKey")
+                .addHeader("Content-Type", "application/json")
+                .build()
+            
+            val qrCodesResponse = withContext(Dispatchers.IO) {
+                client.newCall(qrCodesRequest).execute()
+            }
+            val qrCodesBody = qrCodesResponse.body?.string()
+            
+            android.util.Log.d("ApiService", "QR codes response code: ${qrCodesResponse.code}")
+            
+            // QR kodları course_id ve week_number'ye göre grupla
+            val qrCodesByCourse = mutableMapOf<Long, MutableList<Pair<Int, String?>>>()
+            
+            if (qrCodesResponse.isSuccessful && !qrCodesBody.isNullOrEmpty() && qrCodesBody != "[]") {
+                val qrCodesData = moshi.adapter(List::class.java).fromJson(qrCodesBody) as? List<Map<String, Any>>
+                android.util.Log.d("ApiService", "Found ${qrCodesData?.size ?: 0} QR codes total")
+                
+                qrCodesData?.forEach { qrCode ->
+                    val courseId = (qrCode["course_id"] as? Number)?.toLong() ?: return@forEach
+                    val weekNumber = (qrCode["week_number"] as? Number)?.toInt() ?: return@forEach
+                    val qrCreatedAt = qrCode["created_at"] as? String
+                    
+                    if (!qrCodesByCourse.containsKey(courseId)) {
+                        qrCodesByCourse[courseId] = mutableListOf()
+                    }
+                    qrCodesByCourse[courseId]?.add(Pair(weekNumber, qrCreatedAt))
+                }
+            }
+            
+            // Her ders için haftaları oluştur
+            // attendancesByCourse zaten attendances'ten geldi (yukarıda oluşturuldu)
+            android.util.Log.d("ApiService", "Step 6: Building week attendance data")
+            result.forEach { course ->
+                val weeks = mutableListOf<StudentWeekAttendance>()
+                val qrCodes = qrCodesByCourse[course.courseId] ?: emptyList()
+                val attendances = attendancesByCourse[course.courseId] ?: emptyMap()
+                
+                // Eğer QR kodları varsa, onları kullan
+                if (qrCodes.isNotEmpty()) {
+                    qrCodes.forEach { (weekNumber, qrCreatedAt) ->
+                        val hasAttendance = attendances.containsKey(weekNumber)
+                        val attendanceTime = attendances[weekNumber]
+                        
+                        weeks.add(StudentWeekAttendance(
+                            weekNumber = weekNumber,
+                            qrCreatedAt = qrCreatedAt,
+                            hasAttendance = hasAttendance,
+                            attendanceTime = attendanceTime
+                        ))
+                    }
+                } else {
+                    // QR kodları yoksa, sadece attendance kayıtlarını göster
+                    attendances.forEach { (weekNumber, attendanceTime) ->
+                        weeks.add(StudentWeekAttendance(
+                            weekNumber = weekNumber,
+                            qrCreatedAt = null,
+                            hasAttendance = true,
+                            attendanceTime = attendanceTime
+                        ))
+                    }
+                }
+                
+                // weeks listesini güncelle
+                val courseIndex = result.indexOf(course)
+                result[courseIndex] = StudentCourseWithWeeks(
+                    courseId = course.courseId,
+                    courseName = course.courseName,
+                    courseCode = course.courseCode,
+                    weeks = weeks.sortedBy { it.weekNumber }
+                )
+            }
+            
+            android.util.Log.d("ApiService", "=== getStudentAttendanceStatus END ===")
+            android.util.Log.d("ApiService", "Total courses found: ${result.size}")
+            result
+        } catch (e: Exception) {
+            android.util.Log.e("ApiService", "=== EXCEPTION in getStudentAttendanceStatus ===")
+            android.util.Log.e("ApiService", "Exception message: ${e.message}")
+            android.util.Log.e("ApiService", "Exception type: ${e.javaClass.simpleName}")
+            android.util.Log.e("ApiService", "Stack trace: ${e.stackTraceToString()}")
             null
         }
     }

@@ -3298,8 +3298,10 @@ id bounceStart
 id btnBack
 id btnBackFromStudent
 id btnBackFromTeacher
+id btnCheckAttendance
 id btnGenerateQR
 id btnLogout
+id btnRefresh
 id btnSignup
 id btnStartScan
 id btnStopAttendance
@@ -3472,6 +3474,7 @@ id line3
 id linear
 id listMode
 id list_item
+id llAttendanceInfo
 id m3_side_sheet
 id marquee
 id masked
@@ -3602,6 +3605,7 @@ id rb60min
 id rbStudent
 id rbTeacher
 id rectangles
+id recyclerViewCourses
 id recycler_view_attendance
 id recycler_view_weeks
 id report_drawn
@@ -3727,13 +3731,20 @@ id transition_position
 id transition_scene_layoutid_cache
 id transition_transform
 id triangle
+id tvAttendance
+id tvAttendanceRate
 id tvCountdown
+id tvCourseCode
+id tvCourseName
+id tvEmpty
+id tvNoWeeks
 id tvRoleSubtitle
 id tvRoleTitle
 id tvSignupLink
 id tvStatus
 id tvTeacherSignupLink
 id tvTitle
+id tvTotalWeeks
 id tvWelcome
 id tv_attendance_time
 id tv_student_name
@@ -3897,6 +3908,7 @@ layout activity_login
 layout activity_main
 layout activity_signup
 layout activity_student
+layout activity_student_attendance_status
 layout activity_teacher
 layout custom_dialog
 layout design_bottom_navigation_item
@@ -3917,6 +3929,7 @@ layout design_text_input_start_icon
 layout ime_base_split_test_activity
 layout ime_secondary_split_test_activity
 layout item_attendance
+layout item_student_course
 layout item_week
 layout m3_alert_dialog
 layout m3_alert_dialog_actions

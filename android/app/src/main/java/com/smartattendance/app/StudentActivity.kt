@@ -1,6 +1,7 @@
 package com.smartattendance.app
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.widget.Toast
@@ -69,6 +70,18 @@ class StudentActivity : AppCompatActivity() {
 
         binding.btnStopScan.setOnClickListener {
             stopScanning()
+        }
+        
+        // Yoklama durumu kontrol butonu
+        binding.btnCheckAttendance.setOnClickListener {
+            val email = intent.getStringExtra("email") ?: ""
+            if (email.isNotBlank()) {
+                val intent = Intent(this, StudentAttendanceStatusActivity::class.java)
+                intent.putExtra("email", email)
+                startActivity(intent)
+            } else {
+                Toast.makeText(this, "Email bilgisi bulunamadı", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 

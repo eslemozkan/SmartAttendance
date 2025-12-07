@@ -68,6 +68,9 @@
             android:name="com.smartattendance.app.StudentActivity"
             android:exported="false" />
         <activity
+            android:name="com.smartattendance.app.StudentAttendanceStatusActivity"
+            android:exported="false" />
+        <activity
             android:name="com.smartattendance.app.AttendanceListActivity"
             android:exported="false" />
         <activity

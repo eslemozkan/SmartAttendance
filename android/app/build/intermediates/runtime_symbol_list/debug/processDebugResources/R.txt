@@ -3297,8 +3297,10 @@ int id bounceStart 0x7f080063
 int id btnBack 0x7f08023c
 int id btnBackFromStudent 0x7f080064
 int id btnBackFromTeacher 0x7f080065
+int id btnCheckAttendance 0x7f080247
 int id btnGenerateQR 0x7f080067
 int id btnLogout 0x7f080068
+int id btnRefresh 0x7f080248
 int id btnSignup 0x7f08023d
 int id btnStartScan 0x7f080069
 int id btnStopAttendance 0x7f08006a
@@ -3471,6 +3473,7 @@ int id line3 0x7f08010c
 int id linear 0x7f08010d
 int id listMode 0x7f08010e
 int id list_item 0x7f08010f
+int id llAttendanceInfo 0x7f080251
 int id m3_side_sheet 0x7f080110
 int id marquee 0x7f080111
 int id masked 0x7f080112
@@ -3601,6 +3604,7 @@ int id rb60min 0x7f08018d
 int id rbStudent 0x7f080243
 int id rbTeacher 0x7f080244
 int id rectangles 0x7f08018e
+int id recyclerViewCourses 0x7f080249
 int id recycler_view_attendance 0x7f08018f
 int id recycler_view_weeks 0x7f080190
 int id report_drawn 0x7f080191
@@ -3726,13 +3730,20 @@ int id transition_position 0x7f080207
 int id transition_scene_layoutid_cache 0x7f080208
 int id transition_transform 0x7f080209
 int id triangle 0x7f08020a
+int id tvAttendance 0x7f08024b
+int id tvAttendanceRate 0x7f08024c
 int id tvCountdown 0x7f08020b
+int id tvCourseCode 0x7f08024d
+int id tvCourseName 0x7f08024e
+int id tvEmpty 0x7f08024a
+int id tvNoWeeks 0x7f08024f
 int id tvRoleSubtitle 0x7f08020c
 int id tvRoleTitle 0x7f08020d
 int id tvSignupLink 0x7f080242
 int id tvStatus 0x7f08020e
 int id tvTeacherSignupLink 0x7f080246
 int id tvTitle 0x7f08020f
+int id tvTotalWeeks 0x7f080250
 int id tvWelcome 0x7f080210
 int id tv_attendance_time 0x7f080237
 int id tv_student_name 0x7f080238
@@ -3896,6 +3907,7 @@ int layout activity_login 0x7f0b001d
 int layout activity_main 0x7f0b001e
 int layout activity_signup 0x7f0b0077
 int layout activity_student 0x7f0b001f
+int layout activity_student_attendance_status 0x7f0b0078
 int layout activity_teacher 0x7f0b0020
 int layout custom_dialog 0x7f0b0021
 int layout design_bottom_navigation_item 0x7f0b0022
@@ -3916,6 +3928,7 @@ int layout design_text_input_start_icon 0x7f0b0030
 int layout ime_base_split_test_activity 0x7f0b0031
 int layout ime_secondary_split_test_activity 0x7f0b0032
 int layout item_attendance 0x7f0b0072
+int layout item_student_course 0x7f0b0079
 int layout item_week 0x7f0b0073
 int layout m3_alert_dialog 0x7f0b0033
 int layout m3_alert_dialog_actions 0x7f0b0034
