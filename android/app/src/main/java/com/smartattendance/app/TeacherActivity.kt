@@ -26,7 +26,7 @@ class TeacherActivity : AppCompatActivity() {
     
     // Dynamic courses loaded from Supabase (fallback includes "Ders Yok")
     private var courses: List<Course> = listOf(
-        Course(4, "Ders Yok", "", "")
+        Course(4, null, "Ders Yok", "", "") // "Ders Yok" has no UUID
     )
     
     private val weeks = listOf(
@@ -72,19 +72,58 @@ class TeacherActivity : AppCompatActivity() {
 
         // Load assigned courses for this teacher by email (if available)
         if (email.isNotBlank()) {
+            android.util.Log.d("TeacherActivity", "Loading courses for teacher email: $email")
             lifecycleScope.launch {
-                val assigned = apiService.getAssignedCoursesForTeacher(email)
-                val mapped: List<Course> = (assigned ?: emptyList()).mapNotNull { row ->
-                    val id = row.courseId?.toInt() ?: return@mapNotNull null
-                    val name = row.courseName ?: return@mapNotNull null
-                    val code = row.courseCode ?: ""
-                    Course(id, name, code, "")
-                }
-                if (mapped.isNotEmpty()) {
-                    courses = mapped + courses.filter { it.id == 4 }
-                    runOnUiThread { setupCourseSpinner() }
+                try {
+                    val assigned = apiService.getAssignedCoursesForTeacher(email)
+                    android.util.Log.d("TeacherActivity", "Received ${assigned?.size ?: 0} assigned courses")
+                    
+                    val mapped: List<Course> = (assigned ?: emptyList()).mapIndexedNotNull { index, row ->
+                        android.util.Log.d("TeacherActivity", "Processing course $index: id=${row.courseId}, name=${row.courseName}")
+                        
+                        // course_id BIGINT (Long) olarak geliyor, hash'e çevirerek Int ID oluştur (UI için)
+                        val courseIdLong = row.courseId
+                        val id = if (courseIdLong != null && courseIdLong > 0) {
+                            // Long'u Int'e çevir (pozitif sayı garantisi)
+                            kotlin.math.abs(courseIdLong.toInt())
+                        } else {
+                            android.util.Log.w("TeacherActivity", "Course $index has null/invalid course_id")
+                            return@mapIndexedNotNull null
+                        }
+                        
+                        val name = row.courseName ?: return@mapIndexedNotNull null
+                        val code = row.courseCode ?: ""
+                        
+                        // courseIdLong'u String'e çevirip uuid field'ında sakla (QR oluştururken kullanmak için)
+                        val courseIdString = courseIdLong.toString()
+                        
+                        android.util.Log.d("TeacherActivity", "Mapped course: id=$id, courseId=$courseIdLong, name=$name, code=$code")
+                        Course(id, courseIdString, name, code, "") // courseId'yi String olarak sakla
+                    }
+                    
+                    android.util.Log.d("TeacherActivity", "Mapped ${mapped.size} courses")
+                    
+                    if (mapped.isNotEmpty()) {
+                        courses = mapped + courses.filter { it.id == 4 }
+                        runOnUiThread { 
+                            setupCourseSpinner()
+                            android.util.Log.d("TeacherActivity", "Course spinner updated with ${courses.size} courses")
+                        }
+                    } else {
+                        android.util.Log.w("TeacherActivity", "No courses mapped, keeping default")
+                        runOnUiThread {
+                            Toast.makeText(this@TeacherActivity, "Bu öğretmene atanmış ders bulunamadı", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("TeacherActivity", "Error loading courses: ${e.message}", e)
+                    runOnUiThread {
+                        Toast.makeText(this@TeacherActivity, "Dersler yüklenirken hata: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
+        } else {
+            android.util.Log.w("TeacherActivity", "No email provided, using default courses")
         }
     }
 
@@ -280,9 +319,29 @@ class TeacherActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 // Create QR on server (Edge Function) so student validation can find it in DB
+                // courseId is stored as String in Course.uuid field, convert to Long
+                val courseIdToSend = if (!selectedCourse.uuid.isNullOrBlank()) {
+                    try {
+                        selectedCourse.uuid.toLong()
+                    } catch (e: NumberFormatException) {
+                        android.util.Log.e("TeacherActivity", "Invalid courseId format: ${selectedCourse.uuid}")
+                        Toast.makeText(this@TeacherActivity, "Ders ID geçersiz. Lütfen geçerli bir ders seçin.", Toast.LENGTH_LONG).show()
+                        binding.btnGenerateQR.isEnabled = true
+                        return@launch
+                    }
+                } else {
+                    // This should not happen for valid courses, but handle gracefully
+                    android.util.Log.e("TeacherActivity", "Missing courseId for course: ${selectedCourse.name}, id=${selectedCourse.id}")
+                    Toast.makeText(this@TeacherActivity, "Ders ID bulunamadı. Lütfen geçerli bir ders seçin.", Toast.LENGTH_LONG).show()
+                    binding.btnGenerateQR.isEnabled = true
+                    return@launch
+                }
+                
+                android.util.Log.d("TeacherActivity", "Creating QR with courseId (BIGINT): $courseIdToSend (course=${selectedCourse.name})")
+                
                 val response = withContext(Dispatchers.IO) {
                     apiService.createQRCode(
-                        courseId = selectedCourse.id,
+                        courseId = courseIdToSend,
                         weekNumber = selectedWeek.id,
                         expireAfterMinutes = duration
                     )
@@ -320,7 +379,14 @@ class TeacherActivity : AppCompatActivity() {
                 startCountdown(duration * 60)
 
             } catch (e: Exception) {
-                Toast.makeText(this@TeacherActivity, "QR oluşturma hatası: ${e.message}", Toast.LENGTH_LONG).show()
+                android.util.Log.e("TeacherActivity", "QR creation error: ${e.javaClass.simpleName} - ${e.message}", e)
+                val errorMessage = when {
+                    e.message?.contains("Failed to connect") == true -> "Sunucuya bağlanılamadı. İnternet bağlantınızı kontrol edin."
+                    e.message?.contains("timeout") == true -> "İstek zaman aşımına uğradı. Lütfen tekrar deneyin."
+                    e.message?.contains("Unknown host") == true -> "Sunucu bulunamadı. İnternet bağlantınızı kontrol edin."
+                    else -> "QR kod oluşturma hatası: ${e.message ?: "Bilinmeyen hata"}"
+                }
+                Toast.makeText(this@TeacherActivity, errorMessage, Toast.LENGTH_LONG).show()
             } finally {
                 binding.progressBar.visibility = android.view.View.GONE
                 binding.btnGenerateQR.isEnabled = true

@@ -17,7 +17,7 @@ class AttendanceListActivity : AppCompatActivity() {
     private lateinit var attendanceAdapter: AttendanceAdapter
     
     private var courses: List<Course> = listOf(
-        Course(4, "Ders Yok", "N/A", "Bu hafta ders yapılmayacak")
+        Course(4, null, "Ders Yok", "N/A", "Bu hafta ders yapılmayacak") // "Ders Yok" has no UUID
     )
     
     private var selectedCourse: Course? = null
@@ -37,11 +37,27 @@ class AttendanceListActivity : AppCompatActivity() {
         if (email.isNotBlank()) {
             lifecycleScope.launch {
                 val assigned = apiService.getAssignedCoursesForTeacher(email)
-                val mapped: List<Course> = (assigned ?: emptyList()).mapNotNull { row ->
-                    val id = row.courseId?.toInt() ?: return@mapNotNull null
-                    val name = row.courseName ?: return@mapNotNull null
+                val mapped: List<Course> = (assigned ?: emptyList()).mapIndexedNotNull { index, row ->
+                    android.util.Log.d("AttendanceListActivity", "Processing course $index: id=${row.courseId}, name=${row.courseName}")
+                    
+                    // course_id BIGINT (Long) olarak geliyor, Int ID oluştur (UI için)
+                    val courseIdLong = row.courseId
+                    val id = if (courseIdLong != null && courseIdLong > 0) {
+                        // Long'u Int'e çevir (pozitif sayı garantisi)
+                        kotlin.math.abs(courseIdLong.toInt())
+                    } else {
+                        android.util.Log.w("AttendanceListActivity", "Course $index has null/invalid course_id")
+                        return@mapIndexedNotNull null
+                    }
+                    
+                    val name = row.courseName ?: return@mapIndexedNotNull null
                     val code = row.courseCode ?: ""
-                    Course(id, name, code, "")
+                    
+                    // courseIdLong'u String'e çevirip uuid field'ında sakla (API çağrıları için)
+                    val courseIdString = courseIdLong.toString()
+                    
+                    android.util.Log.d("AttendanceListActivity", "Mapped course: id=$id, courseId=$courseIdLong, name=$name, code=$code")
+                    Course(id, courseIdString, name, code, "") // courseId'yi String olarak sakla
                 }
                 if (mapped.isNotEmpty()) {
                     courses = mapped + courses.filter { it.id == 4 }

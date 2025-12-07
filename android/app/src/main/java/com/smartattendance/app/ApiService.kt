@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit
 
 @JsonClass(generateAdapter = true)
 data class CreateQRRequest(
-    @Json(name = "course_id") val courseId: Int,
+    @Json(name = "course_id") val courseId: Long, // BIGINT number (courses.id is BIGINT)
     @Json(name = "week_number") val weekNumber: Int,
     @Json(name = "expire_after_minutes") val expireAfterMinutes: Int
 )
@@ -27,7 +27,7 @@ data class CreateQRResponse(
 
 @JsonClass(generateAdapter = true)
 data class QRData(
-    @Json(name = "course_id") val courseId: Int,
+    @Json(name = "course_id") val courseId: Long, // BIGINT number
     @Json(name = "week_number") val weekNumber: Int,
     @Json(name = "created_at") val createdAt: String,
     @Json(name = "expire_after") val expireAfter: Int
@@ -35,7 +35,7 @@ data class QRData(
 
 @JsonClass(generateAdapter = true)
 data class ValidateQRRequest(
-    @Json(name = "course_id") val courseId: Int,
+    @Json(name = "course_id") val courseId: Long, // BIGINT number (courses.id is BIGINT)
     @Json(name = "week_number") val weekNumber: Int,
     @Json(name = "created_at") val createdAt: String,
     @Json(name = "expire_after") val expireAfter: Int,
@@ -72,7 +72,7 @@ data class GetAttendanceResponse(
 data class TeacherAssignedCourse(
     @Json(name = "assignment_id") val assignmentId: String?,
     @Json(name = "teacher_email") val teacherEmail: String?,
-    @Json(name = "course_id") val courseId: Long?,
+    @Json(name = "course_id") val courseId: Long?, // BIGINT number (courses.id is BIGINT)
     @Json(name = "course_name") val courseName: String?,
     @Json(name = "course_code") val courseCode: String?
 )
@@ -87,8 +87,9 @@ data class StudentSignupResult(
 
 class ApiService {
     private val client = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
+        .connectTimeout(60, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
         .build()
     
     private val moshi = Moshi.Builder()
@@ -166,22 +167,49 @@ class ApiService {
         return try {
             val encoded = java.net.URLEncoder.encode(email, "UTF-8")
             val url = "$restBaseUrl/teacher_assigned_courses?select=assignment_id,teacher_email,course_id,course_name,course_code&teacher_email=eq.$encoded"
+            
+            android.util.Log.d("ApiService", "Loading courses for teacher: $email")
+            android.util.Log.d("ApiService", "AssignedCourses URL: $url")
+            
             val httpRequest = Request.Builder()
                 .url(url)
                 .get()
                 .addHeader("apikey", anonKey)
                 .addHeader("Authorization", "Bearer $anonKey")
+                .addHeader("Content-Type", "application/json")
                 .build()
+            
             val response = withContext(Dispatchers.IO) {
                 client.newCall(httpRequest).execute()
             }
+            
             val body = response.body?.string()
-            android.util.Log.d("ApiService", "AssignedCourses Code: ${response.code} Body: ${body?.take(200)}")
-            if (!response.isSuccessful || body.isNullOrEmpty()) return null
+            android.util.Log.d("ApiService", "AssignedCourses Response Code: ${response.code}")
+            android.util.Log.d("ApiService", "AssignedCourses Response Body: ${body?.take(500)}")
+            
+            if (!response.isSuccessful) {
+                android.util.Log.e("ApiService", "AssignedCourses HTTP Error: ${response.code} - $body")
+                return null
+            }
+            
+            if (body.isNullOrEmpty() || body == "[]") {
+                android.util.Log.w("ApiService", "No courses found for teacher: $email")
+                return emptyList()
+            }
+            
             val type = com.squareup.moshi.Types.newParameterizedType(List::class.java, TeacherAssignedCourse::class.java)
-            moshi.adapter<List<TeacherAssignedCourse>>(type).fromJson(body)
+            val result = moshi.adapter<List<TeacherAssignedCourse>>(type).fromJson(body)
+            android.util.Log.d("ApiService", "Parsed ${result?.size ?: 0} courses")
+            result
+        } catch (e: java.net.UnknownHostException) {
+            android.util.Log.e("ApiService", "getAssignedCoursesForTeacher network error: ${e.message}", e)
+            null
+        } catch (e: java.net.SocketTimeoutException) {
+            android.util.Log.e("ApiService", "getAssignedCoursesForTeacher timeout: ${e.message}", e)
+            null
         } catch (e: Exception) {
-            android.util.Log.e("ApiService", "getAssignedCoursesForTeacher error: ${e.message}", e)
+            android.util.Log.e("ApiService", "getAssignedCoursesForTeacher error: ${e.javaClass.simpleName} - ${e.message}", e)
+            android.util.Log.e("ApiService", "Stack trace: ${e.stackTraceToString()}")
             null
         }
     }
@@ -252,29 +280,53 @@ class ApiService {
         }
     }
     
-    suspend fun createQRCode(courseId: Int, weekNumber: Int, expireAfterMinutes: Int): CreateQRResponse? {
-        val request = CreateQRRequest(courseId, weekNumber, expireAfterMinutes)
-        val json = moshi.adapter(CreateQRRequest::class.java).toJson(request)
-        
-        val httpRequest = Request.Builder()
-            .url("$functionsBaseUrl/create-qr")
-            .post(json.toRequestBody("application/json".toMediaType()))
-            .addHeader("Content-Type", "application/json")
-            .addHeader("Authorization", "Bearer $anonKey")
-            .addHeader("apikey", anonKey)
-            .build()
-        
+    suspend fun createQRCode(courseId: Long, weekNumber: Int, expireAfterMinutes: Int): CreateQRResponse? {
         return try {
+            val request = CreateQRRequest(courseId, weekNumber, expireAfterMinutes)
+            val json = moshi.adapter(CreateQRRequest::class.java).toJson(request)
+            val url = "$functionsBaseUrl/create-qr"
+            
+            android.util.Log.d("ApiService", "CreateQR URL: $url")
+            android.util.Log.d("ApiService", "CreateQR Request: $json")
+            
+            val httpRequest = Request.Builder()
+                .url(url)
+                .post(json.toRequestBody("application/json".toMediaType()))
+                .addHeader("Content-Type", "application/json")
+                .addHeader("Authorization", "Bearer $anonKey")
+                .addHeader("apikey", anonKey)
+                .build()
+            
             val response = withContext(Dispatchers.IO) {
                 client.newCall(httpRequest).execute()
             }
+            
             val body = response.body?.string()
+            android.util.Log.d("ApiService", "CreateQR Response Code: ${response.code}")
+            android.util.Log.d("ApiService", "CreateQR Response Body: $body")
+            
             if (response.isSuccessful) {
-                moshi.adapter(CreateQRResponse::class.java).fromJson(body)
+                val result = moshi.adapter(CreateQRResponse::class.java).fromJson(body)
+                if (result == null) {
+                    android.util.Log.e("ApiService", "Failed to parse CreateQR response")
+                    throw RuntimeException("Failed to parse response")
+                }
+                result
             } else {
+                android.util.Log.e("ApiService", "CreateQR HTTP Error: ${response.code} - $body")
                 throw RuntimeException("create-qr failed ${response.code}: ${body ?: "<empty>"}")
             }
+        } catch (e: java.net.UnknownHostException) {
+            android.util.Log.e("ApiService", "CreateQR Network Error: Unknown host - ${e.message}", e)
+            throw RuntimeException("Failed to connect to server. Check your internet connection.")
+        } catch (e: java.net.SocketTimeoutException) {
+            android.util.Log.e("ApiService", "CreateQR Timeout Error: ${e.message}", e)
+            throw RuntimeException("Request timeout. The server may be slow or unreachable.")
+        } catch (e: java.io.IOException) {
+            android.util.Log.e("ApiService", "CreateQR IO Error: ${e.message}", e)
+            throw RuntimeException("Network error: ${e.message}")
         } catch (e: Exception) {
+            android.util.Log.e("ApiService", "CreateQR Error: ${e.javaClass.simpleName} - ${e.message}", e)
             throw e
         }
     }

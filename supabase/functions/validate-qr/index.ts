@@ -222,7 +222,7 @@ Deno.serve(async (req) => {
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.5";
 
 type ValidateQrInput = {
-  course_id?: number;
+  course_id?: string | number; // BIGINT number (courses.id is BIGINT, but can come as string from JSON)
   week_number?: number;
   created_at?: string;
   expire_after?: number;

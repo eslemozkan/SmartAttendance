@@ -23,3 +23,4 @@ INSERT INTO public.settings (key, value, description) VALUES
     ('current_semester', 'Güz', 'Mevcut dönem (Güz, Bahar, Yaz)')
 ON CONFLICT (key) DO NOTHING;
 
+

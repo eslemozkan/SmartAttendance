@@ -1,7 +1,8 @@
 package com.smartattendance.app
 
 data class Course(
-    val id: Int,
+    val id: Int, // Hash-based ID for UI (spinner index)
+    val uuid: String? = null, // UUID from database (for API calls)
     val name: String,
     val code: String,
     val schedule: String
