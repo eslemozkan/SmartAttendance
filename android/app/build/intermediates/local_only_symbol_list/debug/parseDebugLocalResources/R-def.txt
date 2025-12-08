@@ -19,6 +19,7 @@ color academic_text_primary
 color academic_text_secondary
 color background_light
 color black
+color button_fuchsia
 color purple_200
 color purple_500
 color purple_700
@@ -29,6 +30,7 @@ color text_secondary
 color white
 drawable badge_primary
 drawable badge_success
+drawable bg_student_course_card
 drawable button_academic_outline
 drawable button_academic_primary
 drawable button_academic_secondary

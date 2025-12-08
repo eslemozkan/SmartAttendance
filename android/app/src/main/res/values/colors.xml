@@ -17,6 +17,7 @@
     <color name="academic_text_secondary">#757575</color>
     <color name="academic_text_hint">#BDBDBD</color>
     <color name="academic_text_dark">#000000</color>
+    <color name="button_fuchsia">#FF4081</color>
     
     <!-- Additional colors for attendance list -->
     <color name="academic_blue">#1976D2</color>

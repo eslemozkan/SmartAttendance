@@ -24,20 +24,12 @@
         "source": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-main-45:\\layout\\activity_student_attendance_status.xml"
     },
     {
-        "merged": "com.smartattendance.app-mergeDebugResources-42:/layout/activity_student.xml",
-        "source": "com.smartattendance.app-main-45:/layout/activity_student.xml"
-    },
-    {
         "merged": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-mergeDebugResources-42:\\layout\\spinner_item.xml",
         "source": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-main-45:\\layout\\spinner_item.xml"
     },
     {
         "merged": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-mergeDebugResources-42:\\layout\\activity_student.xml",
         "source": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-main-45:\\layout\\activity_student.xml"
-    },
-    {
-        "merged": "com.smartattendance.app-mergeDebugResources-42:/layout/activity_student_attendance_status.xml",
-        "source": "com.smartattendance.app-main-45:/layout/activity_student_attendance_status.xml"
     },
     {
         "merged": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-mergeDebugResources-42:\\layout\\activity_main.xml",

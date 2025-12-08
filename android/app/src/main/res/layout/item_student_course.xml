@@ -5,7 +5,8 @@
     android:orientation="vertical"
     android:padding="16dp"
     android:layout_marginBottom="16dp"
-    android:background="#FFFFFF"
+    android:background="@drawable/bg_student_course_card"
+    android:foreground="?attr/selectableItemBackground"
     android:elevation="2dp">
 
     <TextView
@@ -15,6 +16,7 @@
         android:text="Ders Adı"
         android:textSize="18sp"
         android:textStyle="bold"
+        android:textColor="?attr/colorOnPrimary"
         android:layout_marginBottom="4dp"/>
 
     <TextView
@@ -23,7 +25,7 @@
         android:layout_height="wrap_content"
         android:text="BM301"
         android:textSize="14sp"
-        android:textColor="@android:color/darker_gray"
+        android:textColor="?attr/colorOnPrimary"
         android:layout_marginBottom="16dp"/>
 
     <TextView
@@ -32,7 +34,7 @@
         android:layout_height="wrap_content"
         android:text="Henüz QR kod oluşturulmamış"
         android:textSize="14sp"
-        android:textColor="@android:color/darker_gray"
+        android:textColor="?attr/colorOnPrimary"
         android:textAlignment="center"
         android:padding="8dp"
         android:visibility="gone"/>
@@ -56,7 +58,7 @@
                 android:layout_weight="1"
                 android:text="Toplam Hafta:"
                 android:textSize="14sp"
-                android:textColor="@android:color/darker_gray"/>
+                android:textColor="?attr/colorOnPrimary"/>
 
             <TextView
                 android:id="@+id/tvTotalWeeks"
@@ -79,7 +81,7 @@
                 android:layout_weight="1"
                 android:text="Katılım:"
                 android:textSize="14sp"
-                android:textColor="@android:color/darker_gray"/>
+                android:textColor="?attr/colorOnPrimary"/>
 
             <TextView
                 android:id="@+id/tvAttendance"
@@ -101,7 +103,7 @@
                 android:layout_weight="1"
                 android:text="Katılım Oranı:"
                 android:textSize="14sp"
-                android:textColor="@android:color/darker_gray"/>
+                android:textColor="?attr/colorOnPrimary"/>
 
             <TextView
                 android:id="@+id/tvAttendanceRate"
