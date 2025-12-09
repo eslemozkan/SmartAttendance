@@ -2,13 +2,22 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { ArrowLeft, Plus, Check, X, Edit, Trash2 } from 'lucide-react'
+import { ArrowLeft, Plus, Check, X, Edit, Trash2, Users } from 'lucide-react'
 
 type Department = { id: string; name: string; code: string }
 type Teacher = { id: string; full_name: string; email: string; department_id: string }
 // courses.id can be bigint in DB, allow number|string
 type Course = { id: number | string; name: string; code: string | null; department_id: string }
 type TeacherCourse = { id: string; teacher_id: string; course_id: string; courses: { name: string; code: string | null } }
+type Class = { id: string; name: string; department_id: string; academic_year: string; grade_level?: number }
+type CourseClassAssignment = {
+  id: string
+  course_id: string
+  class_id: string
+  academic_year: string
+  semester: string
+  classes?: Class
+}
 
 export default function CoursesManagementPage() {
   const [departments, setDepartments] = useState<Department[]>([])
@@ -17,25 +26,81 @@ export default function CoursesManagementPage() {
   const [courses, setCourses] = useState<Course[]>([])
   const [assignments, setAssignments] = useState<Record<string, TeacherCourse[]>>({})
   const [loading, setLoading] = useState(true)
-  const [creatingCourse, setCreatingCourse] = useState(false)
+  const [creatingCourse, setCreatingCourse] = useState<number | null>(null) // Hangi sınıf seviyesine ders ekleniyor
   const [editingCourse, setEditingCourse] = useState<Course | null>(null)
-  const [newCourse, setNewCourse] = useState({ name: '', code: '' })
+  const [newCourse, setNewCourse] = useState({ name: '', code: '', gradeLevel: null as number | null })
+  
+  // Sınıf atamaları için state'ler
+  const [academicYear, setAcademicYear] = useState('2024-2025')
+  const [semester, setSemester] = useState('Güz')
+  const [allClasses, setAllClasses] = useState<Class[]>([])
+  const [courseAssignments, setCourseAssignments] = useState<Record<string, CourseClassAssignment[]>>({})
+  const [expandedCourse, setExpandedCourse] = useState<string | null>(null)
+  const [assigningToGrade, setAssigningToGrade] = useState<{ courseId: string; gradeLevel: number } | null>(null)
+  
+  // Dinamik veriler
+  const [availableAcademicYears, setAvailableAcademicYears] = useState<string[]>([])
+  const [availableSemesters] = useState(['Güz', 'Bahar', 'Yaz']) // Dönemler sabit
 
   useEffect(() => {
     loadDepartments()
   }, [])
 
   useEffect(() => {
+    loadAcademicYears()
+  }, [])
+
+  useEffect(() => {
     if (selectedDeptId) {
       loadTeachersAndCourses(selectedDeptId)
+      loadClassesAndAssignments(selectedDeptId)
     }
-  }, [selectedDeptId])
+  }, [selectedDeptId, academicYear, semester])
 
   async function loadDepartments() {
     setLoading(true)
     const { data } = await supabase.from('departments').select('*').order('name')
     setDepartments(data || [])
     setLoading(false)
+  }
+
+  async function loadAcademicYears() {
+    try {
+      // Veritabanındaki tüm akademik yılları çek
+      const { data: classesData } = await supabase
+        .from('classes')
+        .select('academic_year')
+        .order('academic_year', { ascending: false })
+
+      if (classesData && classesData.length > 0) {
+        // Unique akademik yılları al
+        const uniqueYears = Array.from(new Set(classesData.map(c => c.academic_year).filter(Boolean)))
+        setAvailableAcademicYears(uniqueYears.length > 0 ? uniqueYears : ['2024-2025'])
+        
+        // Eğer seçili akademik yıl listede yoksa, ilkini seç
+        if (!uniqueYears.includes(academicYear) && uniqueYears.length > 0) {
+          setAcademicYear(uniqueYears[0])
+        }
+      } else {
+        // Varsayılan akademik yıllar
+        const currentYear = new Date().getFullYear()
+        const defaultYears = [
+          `${currentYear}-${currentYear + 1}`,
+          `${currentYear + 1}-${currentYear + 2}`,
+          `${currentYear + 2}-${currentYear + 3}`
+        ]
+        setAvailableAcademicYears(defaultYears)
+      }
+    } catch (error: any) {
+      console.error('Akademik yıllar yüklenirken hata:', error)
+      // Hata durumunda varsayılan değerler
+      const currentYear = new Date().getFullYear()
+      setAvailableAcademicYears([
+        `${currentYear}-${currentYear + 1}`,
+        `${currentYear + 1}-${currentYear + 2}`,
+        `${currentYear + 2}-${currentYear + 3}`
+      ])
+    }
   }
 
   async function loadTeachersAndCourses(departmentId: string) {
@@ -51,7 +116,7 @@ export default function CoursesManagementPage() {
         .from('courses')
         .select('id, name, code, department_id')
         .eq('department_id', departmentId)
-        .order('name'),
+        .order('code'),
     ])
     setTeachers(t || [])
     setCourses(c || [])
@@ -74,20 +139,284 @@ export default function CoursesManagementPage() {
       setAssignments({})
     }
     setLoading(false)
+    
+    // Dersler yüklendikten sonra sınıf atamalarını yükle
+    if (c && c.length > 0) {
+      await loadClassesAndAssignments(departmentId, c)
+    }
   }
 
-  async function addCourse(departmentId: string) {
+  async function loadClassesAndAssignments(departmentId: string, coursesList?: Course[]) {
+    try {
+      // courses state'ini kullan, eğer coursesList verilmişse onu kullan
+      const coursesToUse = coursesList || courses
+      
+      // Sınıfları yükle
+      const { data: classesData } = await supabase
+        .from('classes')
+        .select('*')
+        .eq('department_id', departmentId)
+        .eq('academic_year', academicYear)
+        .order('grade_level')
+        .order('name')
+
+      // Grade level yoksa isimden çıkar
+      const classesWithGrade = (classesData || []).map(cls => {
+        if (!cls.grade_level && cls.name) {
+          const match = cls.name.match(/^(\d+)/)
+          if (match) {
+            cls.grade_level = parseInt(match[1])
+          }
+        }
+        return cls
+      })
+      setAllClasses(classesWithGrade)
+
+      // Ders-sınıf atamalarını yükle
+      const courseIds = coursesToUse.map(c => c.id.toString())
+      if (courseIds.length > 0) {
+        const classIds = classesWithGrade.map(c => c.id)
+        const { data: assignmentsData } = await supabase
+          .from('course_class_assignments')
+          .select(`
+            *,
+            classes (id, name, academic_year)
+          `)
+          .in('course_id', courseIds)
+          .in('class_id', classIds)
+          .eq('academic_year', academicYear)
+          .eq('semester', semester)
+
+        // Ders bazında grupla
+        const grouped: Record<string, CourseClassAssignment[]> = {}
+        ;(assignmentsData || []).forEach((assignment: any) => {
+          const courseId = assignment.course_id.toString()
+          grouped[courseId] = grouped[courseId] || []
+          grouped[courseId].push(assignment)
+        })
+        setCourseAssignments(grouped)
+      } else {
+        setCourseAssignments({})
+      }
+    } catch (error: any) {
+      console.error('Sınıf ve atama yükleme hatası:', error)
+    }
+  }
+
+  async function addCourse(departmentId: string, gradeLevel: number) {
     if (!newCourse.name.trim()) return
-    const { error } = await supabase.from('courses').insert([
-      { name: newCourse.name.trim(), code: newCourse.code.trim() || null, department_id: departmentId },
-    ])
-    if (error) {
-      alert('Ders eklenemedi: ' + error.message)
+    if (!gradeLevel) return
+    
+    // Önce dersi ekle
+    const { data: courseData, error: courseError } = await supabase
+      .from('courses')
+      .insert([
+        { name: newCourse.name.trim(), code: newCourse.code.trim() || null, department_id: departmentId },
+      ])
+      .select()
+      .single()
+    
+    if (courseError) {
+      alert('Ders eklenemedi: ' + courseError.message)
       return
     }
-    setNewCourse({ name: '', code: '' })
-    setCreatingCourse(false)
-    await loadTeachersAndCourses(departmentId)
+
+    // Seçilen sınıf seviyesindeki tüm sınıflara otomatik atama yap
+    if (courseData) {
+      try {
+        // Önce sınıfları yükle (her zaman yeniden yükle, state güncel olmayabilir)
+        await loadClassesAndAssignments(departmentId)
+        
+        // State güncellenene kadar kısa bir bekleme
+        await new Promise(resolve => setTimeout(resolve, 100))
+        
+        // Şimdi güncel allClasses state'ini kullan
+        const currentClasses = allClasses.length > 0 ? allClasses : []
+        
+        // EN BASİT YÖNTEM: Sadece seviye ve bölüm ile filtrele, akademik yıl filtresini kaldır
+        console.log('🔍 Sınıf yükleme - EN BASİT YÖNTEM')
+        console.log('  - Bölüm ID:', departmentId)
+        console.log('  - Seçilen seviye:', gradeLevel)
+        
+        // Tüm sınıfları çek (akademik yıl filtresi YOK)
+        const { data: allDeptClasses, error: classesError } = await supabase
+          .from('classes')
+          .select('*')
+          .eq('department_id', departmentId)
+          .order('academic_year', { ascending: false })
+          .order('name')
+        
+        if (classesError) {
+          console.error('❌ Sınıf sorgu hatası:', classesError)
+          alert(`Sınıflar yüklenirken hata: ${classesError.message}`)
+          return
+        }
+        
+        console.log('📋 Veritabanından çekilen sınıflar:', allDeptClasses?.length || 0, 'adet')
+        
+        if (!allDeptClasses || allDeptClasses.length === 0) {
+          alert(`Bu bölümde hiç sınıf bulunamadı. Önce sınıfları oluşturun.`)
+          return
+        }
+        
+        // Grade level'i isimden çıkar (eğer yoksa)
+        const classesWithLevel = allDeptClasses.map(cls => {
+          let level = cls.grade_level
+          if (!level && cls.name) {
+            // "1-A", "2-B" formatından seviyeyi çıkar
+            const match = cls.name.match(/^(\d+)/)
+            if (match) {
+              level = parseInt(match[1])
+            }
+          }
+          return { ...cls, grade_level: level }
+        })
+        
+        console.log('✅ İşlenmiş sınıflar (seviye bazında):')
+        const classesByLevel = classesWithLevel.reduce((acc, cls) => {
+          const level = cls.grade_level || 0
+          if (!acc[level]) acc[level] = []
+          acc[level].push(cls)
+          return acc
+        }, {} as Record<number, Class[]>)
+        
+        Object.keys(classesByLevel).forEach(level => {
+          console.log(`  - ${level}. seviye: ${classesByLevel[parseInt(level)].length} sınıf`, 
+            classesByLevel[parseInt(level)].map(c => c.name))
+        })
+        
+        // SADECE seviye ve bölüm ile filtrele (akademik yıl YOK)
+        const targetClasses = classesWithLevel.filter(cls => {
+          const level = cls.grade_level
+          const levelMatch = level === gradeLevel
+          const departmentMatch = String(cls.department_id) === String(departmentId)
+          
+          if (levelMatch && departmentMatch) {
+            console.log(`✅ Eşleşen sınıf: ${cls.name} (seviye: ${level}, akademik yıl: ${cls.academic_year})`)
+          }
+          
+          return levelMatch && departmentMatch
+        })
+        
+        console.log(`✅ Toplam ${targetClasses.length} sınıf bulundu (seviye: ${gradeLevel}, bölüm: ${departmentId})`)
+        
+        if (targetClasses.length === 0) {
+          alert(`${gradeLevel}. sınıf seviyesi için bu bölümde sınıf bulunamadı. Mevcut seviyeler: ${Object.keys(classesByLevel).join(', ')}`)
+          return
+        }
+        
+        // Akademik yıl uyarısı (ama engelleme)
+        const academicYears = [...new Set(targetClasses.map(c => c.academic_year))]
+        if (academicYears.length > 1 || (academicYears.length === 1 && academicYears[0] !== academicYear)) {
+          console.warn(`⚠️ Akademik yıl uyuşmazlığı: Seçili "${academicYear}", bulunan sınıflar: ${academicYears.join(', ')}`)
+          // Uyarı ver ama devam et
+        }
+        
+        const finalTargetClasses = targetClasses
+
+        if (finalTargetClasses.length > 0) {
+          // Tüm sınıflara atama yap
+          // course_id tipini kontrol et - UUID veya BIGINT olabilir
+          const courseIdForAssignment = typeof courseData.id === 'string' 
+            ? courseData.id 
+            : courseData.id.toString()
+          
+          const assignments = finalTargetClasses.map(cls => ({
+            course_id: courseIdForAssignment,
+            class_id: cls.id,
+            teacher_id: null,
+            academic_year: academicYear,
+            semester: semester
+          }))
+          
+          console.log('🔍 Atama öncesi kontrol:')
+          console.log('  - courseData.id:', courseData.id, 'tip:', typeof courseData.id)
+          console.log('  - courseIdForAssignment:', courseIdForAssignment)
+          console.log('  - finalTargetClasses sayısı:', finalTargetClasses.length)
+          console.log('  - assignments:', assignments)
+
+          console.log('Atama yapılacak sınıflar:', finalTargetClasses)
+          console.log('Atama verileri:', assignments)
+
+          const { error: assignError, data: insertedAssignments } = await supabase
+            .from('course_class_assignments')
+            .insert(assignments)
+            .select(`
+              *,
+              classes (id, name, academic_year)
+            `)
+
+          if (assignError) {
+            console.error('Sınıf atama hatası:', assignError)
+            console.error('Atama verileri:', assignments)
+            alert(`Ders eklendi ancak sınıf atamaları yapılamadı: ${assignError.message}`)
+          } else {
+            console.log('✅ Atamalar başarıyla eklendi:', insertedAssignments)
+            alert(`Ders başarıyla eklendi ve ${finalTargetClasses.length} sınıfa atandı`)
+            
+            // courseAssignments state'ini manuel olarak güncelle
+            if (insertedAssignments && insertedAssignments.length > 0) {
+              const courseId = courseData.id.toString()
+              setCourseAssignments(prev => {
+                const existing = prev[courseId] || []
+                const updated = {
+                  ...prev,
+                  [courseId]: [...existing, ...insertedAssignments]
+                }
+                console.log('✅ courseAssignments güncellendi:', updated)
+                return updated
+              })
+            } else {
+              console.warn('⚠️ insertedAssignments boş veya null')
+            }
+          }
+        } else {
+          console.error('❌ Sınıf bulunamadı - Seviye:', gradeLevel)
+          console.error('Mevcut sınıflar:', classesToUse)
+          alert(`Ders eklendi ancak ${gradeLevel}. sınıf seviyesi için bu akademik yılda (${academicYear}) sınıf bulunamadı. Önce sınıfları oluşturun.`)
+        }
+      } catch (error: any) {
+        console.error('Sınıf atama hatası:', error)
+        alert('Ders eklendi ancak sınıf atamaları yapılamadı')
+      }
+    }
+
+    setNewCourse({ name: '', code: '', gradeLevel: null })
+    setCreatingCourse(null)
+    
+    // Yeni eklenen dersi courses listesine ekle
+    if (courseData) {
+      const newCourseItem: Course = {
+        id: courseData.id,
+        name: courseData.name,
+        code: courseData.code,
+        department_id: courseData.department_id
+      }
+      
+      // courses state'ini güncelle
+      const updatedCourses = [...courses, newCourseItem]
+      setCourses(updatedCourses)
+      
+      // Atamaları yeniden yükle (yeni ders dahil) - await ile bekle
+      if (selectedDeptId) {
+        // Önce tüm dersleri yeniden yükle
+        await loadTeachersAndCourses(departmentId)
+        
+        // Kısa bir bekleme (state güncellenene kadar)
+        await new Promise(resolve => setTimeout(resolve, 300))
+        
+        // Sonra atamaları yükle (courses state'i güncellenmiş olacak)
+        // updatedCourses ile çağır ki yeni ders dahil olsun
+        await loadClassesAndAssignments(selectedDeptId, updatedCourses)
+        
+        // Bir kez daha yükle (garanti için)
+        await new Promise(resolve => setTimeout(resolve, 200))
+        await loadClassesAndAssignments(selectedDeptId)
+      }
+    } else {
+      // Dersler ve atamaları yeniden yükle
+      await loadTeachersAndCourses(departmentId)
+    }
   }
 
   async function updateCourse(courseId: number | string, departmentId: string) {
@@ -114,8 +443,14 @@ export default function CoursesManagementPage() {
 
   function handleCancelEdit() {
     setEditingCourse(null)
-    setNewCourse({ name: '', code: '' })
-    setCreatingCourse(false)
+    setNewCourse({ name: '', code: '', gradeLevel: null })
+    setCreatingCourse(null)
+  }
+
+  function startCreatingCourse(gradeLevel: number) {
+    setCreatingCourse(gradeLevel)
+    setNewCourse({ name: '', code: '', gradeLevel })
+    setEditingCourse(null)
   }
 
   async function handleDelete(courseId: number | string) {
@@ -140,11 +475,139 @@ export default function CoursesManagementPage() {
 
       if (error) throw error
       
-      if (selectedDeptId) await loadTeachersAndCourses(selectedDeptId)
+      if (selectedDeptId) {
+        await loadTeachersAndCourses(selectedDeptId)
+      }
     } catch (error: any) {
       console.error('Ders silinirken hata:', error)
       alert('Hata: ' + error.message)
     }
+  }
+
+  async function assignCourseToGradeLevel(courseId: string, gradeLevel: number) {
+    try {
+      // Seçilen seviyedeki tüm sınıfları bul
+      const targetClasses = allClasses.filter(cls => {
+        let level: number | null = cls.grade_level
+        if (!level && cls.name) {
+          const match = cls.name.match(/^(\d+)/)
+          if (match) {
+            level = parseInt(match[1])
+          }
+        }
+        return level === gradeLevel
+      })
+
+      if (targetClasses.length === 0) {
+        alert('Seçilen sınıf seviyesi için sınıf bulunamadı')
+        return
+      }
+
+      // Tüm sınıflara atama yap
+      const assignments = targetClasses.map(cls => ({
+        course_id: courseId,
+        class_id: cls.id,
+        teacher_id: null,
+        academic_year: academicYear,
+        semester: semester
+      }))
+
+      const { error } = await supabase
+        .from('course_class_assignments')
+        .insert(assignments)
+
+      if (error) {
+        if (error.message?.includes('duplicate') || error.message?.includes('unique')) {
+          alert('Bu atamalardan bazıları zaten mevcut')
+        } else {
+          alert('Atama yapılamadı: ' + error.message)
+        }
+        return
+      }
+
+      alert(`${targetClasses.length} sınıfa atama başarıyla yapıldı`)
+      setAssigningToGrade(null)
+      if (selectedDeptId) await loadClassesAndAssignments(selectedDeptId, courses)
+    } catch (error: any) {
+      alert('Hata: ' + error.message)
+    }
+  }
+
+  async function removeCourseAssignment(courseId: string, gradeLevel: number) {
+    if (!confirm('Bu dersi tüm sınıflardan kaldırmak istediğinize emin misiniz?')) return
+
+    try {
+      const classesForLevel = allClasses.filter(cls => {
+        let level: number | null = cls.grade_level
+        if (!level && cls.name) {
+          const match = cls.name.match(/^(\d+)/)
+          if (match) {
+            level = parseInt(match[1])
+          }
+        }
+        return level === gradeLevel
+      })
+      const classIdsForLevel = classesForLevel.map(c => c.id)
+
+      const { error } = await supabase
+        .from('course_class_assignments')
+        .delete()
+        .eq('course_id', courseId)
+        .eq('academic_year', academicYear)
+        .eq('semester', semester)
+        .in('class_id', classIdsForLevel)
+
+      if (error) throw error
+      alert('Ders tüm sınıflardan kaldırıldı')
+      if (selectedDeptId) await loadClassesAndAssignments(selectedDeptId, courses)
+    } catch (error: any) {
+      alert('Hata: ' + error.message)
+    }
+  }
+
+  function getGradeLevels(): number[] {
+    // Eğer sınıflar yüklenmemişse, varsayılan olarak 1-4 göster (kartlar görünsün)
+    if (allClasses.length === 0) {
+      return [1, 2, 3, 4]
+    }
+    
+    const levels = new Set<number>()
+    allClasses.forEach(cls => {
+      let level: number | null = cls.grade_level
+      if (!level && cls.name) {
+        const match = cls.name.match(/^(\d+)/)
+        if (match) {
+          level = parseInt(match[1])
+        }
+      }
+      if (level) levels.add(level)
+    })
+    
+    // Eğer hiç seviye bulunamadıysa, varsayılan olarak 1-4 göster
+    if (levels.size === 0) {
+      return [1, 2, 3, 4]
+    }
+    
+    return Array.from(levels).sort()
+  }
+
+  function getAssignedGradeLevels(courseId: string): number[] {
+    const assignments = courseAssignments[courseId.toString()] || []
+    const levels = new Set<number>()
+    assignments.forEach(assignment => {
+      const cls = assignment.classes
+      if (cls) {
+        let level: number | null = cls.grade_level
+        if (!level && cls.name) {
+          const match = cls.name.match(/^(\d+)/)
+          if (match) {
+            level = parseInt(match[1])
+          }
+        }
+        if (level) levels.add(level)
+      }
+    })
+    return Array.from(levels).sort()
   }
 
   async function assignCourse(teacherId: string, courseId: string) {
@@ -223,42 +686,64 @@ export default function CoursesManagementPage() {
               </select>
             </div>
             {selectedDeptId && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-academic-text-primary mb-1">Akademik Yıl</label>
+                  <select
+                    value={academicYear}
+                    onChange={e => setAcademicYear(e.target.value)}
+                    className="input-field"
+                  >
+                    {availableAcademicYears.map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-academic-text-primary mb-1">Dönem</label>
+                  <select
+                    value={semester}
+                    onChange={e => setSemester(e.target.value)}
+                    className="input-field"
+                  >
+                    {availableSemesters.map(sem => (
+                      <option key={sem} value={sem}>{sem}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+            {selectedDeptId && editingCourse && (
               <div className="flex-1">
-                {!creatingCourse && !editingCourse ? (
-                  <button className="btn-primary" onClick={() => setCreatingCourse(true)}>
-                    <Plus className="w-4 h-4 inline mr-2" /> Yeni Ders Ekle
-                  </button>
-                ) : (
-                  <div className="flex items-end space-x-2">
-                    <div className="flex-1">
-                      <label className="block text-sm font-medium text-academic-text-primary mb-1">Ders Adı</label>
-                      <input
-                        className="input-field"
-                        value={newCourse.name}
-                        onChange={e => setNewCourse({ ...newCourse, name: e.target.value })}
-                        placeholder="Veritabanı I"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-academic-text-primary mb-1">Kod</label>
-                      <input
-                        className="input-field"
-                        value={newCourse.code}
-                        onChange={e => setNewCourse({ ...newCourse, code: e.target.value })}
-                        placeholder="CSE101"
-                      />
-                    </div>
-                    <button 
-                      className="btn-primary" 
-                      onClick={() => editingCourse ? updateCourse(editingCourse.id, selectedDeptId) : addCourse(selectedDeptId)}
-                    >
-                      <Check className="w-4 h-4" />
-                    </button>
-                    <button className="btn-secondary" onClick={handleCancelEdit}>
-                      <X className="w-4 h-4" />
-                    </button>
+                <div className="flex items-end space-x-2">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-academic-text-primary mb-1">Ders Adı</label>
+                    <input
+                      className="input-field"
+                      value={newCourse.name}
+                      onChange={e => setNewCourse({ ...newCourse, name: e.target.value })}
+                      placeholder="Veritabanı I"
+                    />
                   </div>
-                )}
+                  <div>
+                    <label className="block text-sm font-medium text-academic-text-primary mb-1">Kod</label>
+                    <input
+                      className="input-field"
+                      value={newCourse.code}
+                      onChange={e => setNewCourse({ ...newCourse, code: e.target.value })}
+                      placeholder="CSE101"
+                    />
+                  </div>
+                  <button 
+                    className="btn-primary" 
+                    onClick={() => updateCourse(editingCourse.id, selectedDeptId)}
+                  >
+                    <Check className="w-4 h-4" />
+                  </button>
+                  <button className="btn-secondary" onClick={handleCancelEdit}>
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -266,51 +751,158 @@ export default function CoursesManagementPage() {
 
         {selectedDept && (
           <div className="space-y-6">
-            {/* Courses list */}
-            <div className="card">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-academic-text-primary">{selectedDept.name} Dersleri</h2>
-              </div>
-              {courses.length === 0 ? (
-                <p className="text-academic-text-secondary">Bu bölümde henüz ders yok.</p>
-              ) : (
-                <div className="space-y-2">
-                  {courses.map(c => (
-                    <div 
-                      key={c.id} 
-                      className={`flex items-center justify-between p-3 rounded-md border ${
-                        editingCourse?.id === c.id 
-                          ? 'border-academic-primary bg-academic-primary-light' 
-                          : 'border-academic-divider bg-academic-surface'
-                      }`}
-                    >
-                      <div className="flex-1">
-                        <span className="text-academic-text-primary font-medium">
-                          {c.name}
-                          {c.code && <span className="text-academic-text-secondary ml-2">({c.code})</span>}
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-2">
+            {/* Sınıf Seviyesi Bazlı Ders Ekleme */}
+            {(() => {
+              const gradeLevels = getGradeLevels()
+              console.log('Grade Levels:', gradeLevels, 'All Classes:', allClasses.length)
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {gradeLevels.map(level => {
+                // Bu seviyedeki dersleri bul - courseAssignments'ten direkt kontrol et
+                const coursesForLevel = courses.filter(c => {
+                  const courseId = c.id.toString()
+                  const assignments = courseAssignments[courseId] || []
+                  
+                  // Bu seviyedeki sınıfları bul
+                  const classesForLevel = allClasses.filter(cls => {
+                    let clsLevel: number | null = cls.grade_level
+                    if (!clsLevel && cls.name) {
+                      const match = cls.name.match(/^(\d+)/)
+                      if (match) {
+                        clsLevel = parseInt(match[1])
+                      }
+                    }
+                    return clsLevel === level
+                  })
+                  const classIdsForLevel = classesForLevel.map(cl => cl.id)
+                  
+                  // Bu ders bu seviyedeki sınıflardan birine atanmış mı?
+                  return assignments.some(assignment => 
+                    classIdsForLevel.includes(assignment.class_id) &&
+                    assignment.academic_year === academicYear &&
+                    assignment.semester === semester
+                  )
+                })
+                const isCreating = creatingCourse === level
+                
+                return (
+                  <div key={level} className="card">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-academic-text-primary">
+                        {level}. Sınıf Dersleri
+                      </h3>
+                      {!isCreating && (
                         <button
-                          onClick={() => handleEdit(c)}
-                          className="p-2 text-academic-primary hover:bg-academic-primary-light rounded-md transition-colors"
-                          title="Düzenle"
+                          onClick={() => startCreatingCourse(level)}
+                          className="btn-primary text-sm"
                         >
-                          <Edit className="w-4 h-4" />
+                          <Plus className="w-4 h-4 inline mr-1" />
+                          Ders Ekle
                         </button>
-                        <button
-                          onClick={() => handleDelete(c.id)}
-                          className="p-2 text-academic-error hover:bg-academic-error-light rounded-md transition-colors"
-                          title="Sil"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                      )}
                     </div>
-                  ))}
+
+                    {/* Ders Ekleme Formu */}
+                    {isCreating && (
+                      <div className="mb-4 p-3 bg-academic-background rounded-md border border-academic-divider">
+                        <div className="space-y-2">
+                          <input
+                            className="input-field text-sm"
+                            value={newCourse.name}
+                            onChange={e => setNewCourse({ ...newCourse, name: e.target.value })}
+                            placeholder="Ders Adı"
+                          />
+                          <input
+                            className="input-field text-sm"
+                            value={newCourse.code}
+                            onChange={e => setNewCourse({ ...newCourse, code: e.target.value })}
+                            placeholder="Ders Kodu"
+                          />
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => addCourse(selectedDeptId, level)}
+                              className="btn-primary text-sm flex-1"
+                            >
+                              <Check className="w-4 h-4 inline mr-1" />
+                              Ekle
+                            </button>
+                            <button
+                              onClick={handleCancelEdit}
+                              className="btn-secondary text-sm"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Bu seviyedeki dersler */}
+                    {coursesForLevel.length === 0 ? (
+                      <p className="text-academic-text-secondary text-sm">
+                        Henüz ders eklenmedi
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {coursesForLevel.map(c => {
+                          const isExpanded = expandedCourse === c.id.toString()
+                          return (
+                            <div key={c.id}>
+                              <div className="flex items-center justify-between p-2 bg-academic-surface rounded border border-academic-divider">
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-sm font-medium text-academic-text-primary truncate">
+                                    {c.name}
+                                  </div>
+                                  {c.code && (
+                                    <div className="text-xs text-academic-text-secondary">
+                                      {c.code}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                  <button
+                                    onClick={() => setExpandedCourse(isExpanded ? null : c.id.toString())}
+                                    className="p-1 text-academic-primary hover:bg-academic-primary-light rounded transition-colors"
+                                    title="Detay"
+                                  >
+                                    <Users className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleEdit(c)}
+                                    className="p-1 text-academic-primary hover:bg-academic-primary-light rounded transition-colors"
+                                    title="Düzenle"
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(c.id)}
+                                    className="p-1 text-academic-error hover:bg-academic-error-light rounded transition-colors"
+                                    title="Sil"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+                              
+                              {/* Ders detayları */}
+                              {isExpanded && (
+                                <div className="mt-1 p-2 bg-academic-background rounded text-xs">
+                                  <div className="text-academic-text-secondary">
+                                    {academicYear} - {semester}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
                 </div>
-              )}
-            </div>
+              )
+            })()}
 
             {/* Teachers and assignments */}
             <div className="card">

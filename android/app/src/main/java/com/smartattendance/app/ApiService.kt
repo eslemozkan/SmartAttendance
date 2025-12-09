@@ -638,6 +638,11 @@ class ApiService {
             val classId = studentData?.firstOrNull()?.get("class_id")?.toString()
             val departmentId = studentData?.firstOrNull()?.get("department_id")?.toString()
             
+            if (classId.isNullOrBlank() || classId == "null") {
+                android.util.Log.e("ApiService", "Student has no class_id. Student data: $studentData")
+                return emptyList()
+            }
+            
             if (departmentId.isNullOrBlank() || departmentId == "null") {
                 android.util.Log.e("ApiService", "Student has no department_id. Student data: $studentData")
                 return emptyList()
@@ -734,34 +739,41 @@ class ApiService {
             
             val result = mutableListOf<StudentCourseWithWeeks>()
             
-            // ÖNEMLİ: Öğrencinin bölümündeki TÜM dersleri göster (yoklamaya katılmış olsun olmasın)
-            // Önce bölümdeki tüm dersleri çek
-            android.util.Log.d("ApiService", "Step 4: Getting all courses for department_id: $departmentId")
-            val departmentCoursesUrl = "$restBaseUrl/courses?select=id,name,code&department_id=eq.$departmentId&limit=100"
-            android.util.Log.d("ApiService", "Getting department courses: $departmentCoursesUrl")
+            // ÖNEMLİ: Öğrencinin sınıfına atanmış dersleri göster (course_class_assignments kullanarak)
+            // Önce öğrencinin sınıfına atanmış dersleri çek
+            android.util.Log.d("ApiService", "Step 4: Getting courses assigned to class_id: $classId")
+            val assignmentsUrl = "$restBaseUrl/course_class_assignments?select=course_id,courses(id,name,code)&class_id=eq.$classId&limit=100"
+            android.util.Log.d("ApiService", "Getting class course assignments: $assignmentsUrl")
             
-            val departmentCoursesRequest = Request.Builder()
-                .url(departmentCoursesUrl)
+            val assignmentsRequest = Request.Builder()
+                .url(assignmentsUrl)
                 .get()
                 .addHeader("apikey", anonKey)
                 .addHeader("Authorization", "Bearer $anonKey")
                 .addHeader("Content-Type", "application/json")
                 .build()
             
-            val departmentCoursesResponse = withContext(Dispatchers.IO) {
-                client.newCall(departmentCoursesRequest).execute()
+            val assignmentsResponse = withContext(Dispatchers.IO) {
+                client.newCall(assignmentsRequest).execute()
             }
-            val departmentCoursesBody = departmentCoursesResponse.body?.string()
+            val assignmentsBody = assignmentsResponse.body?.string()
             
-            android.util.Log.d("ApiService", "Department courses response code: ${departmentCoursesResponse.code}")
-            android.util.Log.d("ApiService", "Department courses response body: $departmentCoursesBody")
+            android.util.Log.d("ApiService", "Assignments response code: ${assignmentsResponse.code}")
+            android.util.Log.d("ApiService", "Assignments response body: $assignmentsBody")
             
-            if (departmentCoursesResponse.isSuccessful && !departmentCoursesBody.isNullOrEmpty() && departmentCoursesBody != "[]") {
-                val departmentCoursesData = moshi.adapter(List::class.java).fromJson(departmentCoursesBody) as? List<Map<String, Any>>
-                android.util.Log.d("ApiService", "Found ${departmentCoursesData?.size ?: 0} courses in department")
+            if (assignmentsResponse.isSuccessful && !assignmentsBody.isNullOrEmpty() && assignmentsBody != "[]") {
+                val assignmentsData = moshi.adapter(List::class.java).fromJson(assignmentsBody) as? List<Map<String, Any>>
+                android.util.Log.d("ApiService", "Found ${assignmentsData?.size ?: 0} course assignments for class")
                 
-                departmentCoursesData?.forEachIndexed { index, course ->
-                    val courseIdValue = course["id"]
+                assignmentsData?.forEachIndexed { index, assignment ->
+                    // Nested structure: assignment["courses"] contains course data
+                    val coursesMap = assignment["courses"] as? Map<String, Any>
+                    if (coursesMap == null) {
+                        android.util.Log.w("ApiService", "Assignment $index has no courses data")
+                        return@forEachIndexed
+                    }
+                    
+                    val courseIdValue = coursesMap["id"]
                     val courseId = when (courseIdValue) {
                         is Number -> courseIdValue.toLong()
                         is String -> {
@@ -774,15 +786,15 @@ class ApiService {
                         }
                     }
                     
-                    val courseName = course["name"] as? String
+                    val courseName = coursesMap["name"] as? String
                     if (courseName.isNullOrBlank()) {
                         android.util.Log.w("ApiService", "Course $index has no name")
                         return@forEachIndexed
                     }
                     
-                    val courseCode = course["code"] as? String
+                    val courseCode = coursesMap["code"] as? String
                     
-                    android.util.Log.d("ApiService", "Department course: id=$courseId, name=$courseName, code=$courseCode")
+                    android.util.Log.d("ApiService", "Class course: id=$courseId, name=$courseName, code=$courseCode")
                     result.add(StudentCourseWithWeeks(
                         courseId = courseId,
                         courseName = courseName,

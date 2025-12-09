@@ -196,7 +196,7 @@ export default function AdminDashboard() {
           
           <ActionCard
             title="Ders Yönetimi"
-            description="Ders ekleme, düzenleme ve sınıf atamaları"
+            description="Ders ekleme, düzenleme ve sınıf bazlı atamalar"
             icon={BookOpen}
             color="bg-academic-success"
             onClick={() => window.location.href = '/admin/courses'}
@@ -216,6 +216,14 @@ export default function AdminDashboard() {
             icon={Eye}
             color="bg-academic-primary-light text-academic-primary"
             onClick={() => window.location.href = '/admin/reports'}
+          />
+          
+          <ActionCard
+            title="Yıl Sonu İşlemleri"
+            description="Akademik yıl sonu sınıf yükseltme işlemleri"
+            icon={GraduationCap}
+            color="bg-orange-500"
+            onClick={() => window.location.href = '/admin/academic-year'}
           />
           
           <ActionCard
