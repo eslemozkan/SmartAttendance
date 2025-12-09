@@ -4,6 +4,7 @@ import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import com.squareup.moshi.Types
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -51,10 +52,19 @@ data class ValidateQRResponse(
 
 @JsonClass(generateAdapter = true)
 data class WeekWithQR(
-    val course_id: Int,
+    val course_id: Long,
     val week_number: Int,
     val created_at: String,
     val is_active: Boolean
+)
+
+@JsonClass(generateAdapter = true)
+data class CourseWeek(
+    val id: Int,
+    @Json(name = "course_id") val courseId: Long,
+    @Json(name = "week_number") val weekNumber: Int,
+    @Json(name = "has_qr") val hasQr: Boolean,
+    val locked: Boolean
 )
 
 
@@ -167,12 +177,14 @@ class ApiService {
     suspend fun getAssignedCoursesForTeacher(email: String): List<TeacherAssignedCourse>? {
         return try {
             val encoded = java.net.URLEncoder.encode(email, "UTF-8")
-            val url = "$restBaseUrl/teacher_assigned_courses?select=assignment_id,teacher_email,course_id,course_name,course_code&teacher_email=eq.$encoded"
+            
+            // First try the view
+            var url = "$restBaseUrl/teacher_assigned_courses?select=assignment_id,teacher_email,course_id,course_name,course_code&teacher_email=eq.$encoded"
             
             android.util.Log.d("ApiService", "Loading courses for teacher: $email")
-            android.util.Log.d("ApiService", "AssignedCourses URL: $url")
+            android.util.Log.d("ApiService", "Trying view URL: $url")
             
-            val httpRequest = Request.Builder()
+            var httpRequest = Request.Builder()
                 .url(url)
                 .get()
                 .addHeader("apikey", anonKey)
@@ -180,38 +192,113 @@ class ApiService {
                 .addHeader("Content-Type", "application/json")
                 .build()
             
-            val response = withContext(Dispatchers.IO) {
+            var response = withContext(Dispatchers.IO) {
                 client.newCall(httpRequest).execute()
             }
             
-            val body = response.body?.string()
-            android.util.Log.d("ApiService", "AssignedCourses Response Code: ${response.code}")
-            android.util.Log.d("ApiService", "AssignedCourses Response Body: ${body?.take(500)}")
+            var body = response.body?.string()
+            android.util.Log.d("ApiService", "View Response Code: ${response.code}")
+            android.util.Log.d("ApiService", "View Response Body: ${body?.take(500)}")
             
-            if (!response.isSuccessful) {
-                android.util.Log.e("ApiService", "AssignedCourses HTTP Error: ${response.code} - $body")
-                return null
+            // If view fails or returns empty, try direct table join
+            if (!response.isSuccessful || body.isNullOrEmpty() || body == "[]") {
+                android.util.Log.w("ApiService", "View failed or empty, trying direct table query")
+                
+                // Get teacher profile ID first
+                val profileUrl = "$restBaseUrl/profiles?select=id&email=eq.$encoded"
+                val profileRequest = Request.Builder()
+                    .url(profileUrl)
+                    .get()
+                    .addHeader("apikey", anonKey)
+                    .addHeader("Authorization", "Bearer $anonKey")
+                    .build()
+                
+                val profileResponse = withContext(Dispatchers.IO) {
+                    client.newCall(profileRequest).execute()
+                }
+                val profileBody = profileResponse.body?.string()
+                
+                if (profileResponse.isSuccessful && !profileBody.isNullOrEmpty() && profileBody != "[]") {
+                    val profileData = moshi.adapter(List::class.java).fromJson(profileBody) as? List<Map<String, Any>>
+                    val teacherId = profileData?.firstOrNull()?.get("id")?.toString()
+                    
+                    if (teacherId != null) {
+                        android.util.Log.d("ApiService", "Found teacher_id: $teacherId")
+                        
+                        // Query teacher_courses with courses join
+                        url = "$restBaseUrl/teacher_courses?select=id,course_id,courses(id,name,code)&teacher_id=eq.$teacherId"
+                        android.util.Log.d("ApiService", "Direct table URL: $url")
+                        
+                        httpRequest = Request.Builder()
+                            .url(url)
+                            .get()
+                            .addHeader("apikey", anonKey)
+                            .addHeader("Authorization", "Bearer $anonKey")
+                            .build()
+                        
+                        response = withContext(Dispatchers.IO) {
+                            client.newCall(httpRequest).execute()
+                        }
+                        
+                        body = response.body?.string()
+                        android.util.Log.d("ApiService", "Direct table Response Code: ${response.code}")
+                        android.util.Log.d("ApiService", "Direct table Response Body: ${body?.take(500)}")
+                        
+                        if (response.isSuccessful && !body.isNullOrEmpty() && body != "[]") {
+                            // Parse nested structure
+                            val teacherCoursesData = moshi.adapter(List::class.java).fromJson(body) as? List<Map<String, Any>>
+                            val result = teacherCoursesData?.mapNotNull { tc ->
+                                val assignmentId = tc["id"]?.toString()
+                                val courseIdValue = tc["course_id"]
+                                val courseId = when (courseIdValue) {
+                                    is Number -> courseIdValue.toLong()
+                                    else -> null
+                                }
+                                val coursesMap = tc["courses"] as? Map<String, Any>
+                                val courseName = coursesMap?.get("name") as? String
+                                val courseCode = coursesMap?.get("code") as? String
+                                
+                                if (courseId != null && courseName != null) {
+                                    TeacherAssignedCourse(
+                                        assignmentId = assignmentId,
+                                        teacherEmail = email,
+                                        courseId = courseId,
+                                        courseName = courseName,
+                                        courseCode = courseCode
+                                    )
+                                } else null
+                            } ?: emptyList()
+                            
+                            android.util.Log.d("ApiService", "Parsed ${result.size} courses from direct table")
+                            return result
+                        }
+                    }
+                }
             }
             
-            if (body.isNullOrEmpty() || body == "[]") {
-                android.util.Log.w("ApiService", "No courses found for teacher: $email")
-                return emptyList()
+            // Try parsing view response
+            if (response.isSuccessful && !body.isNullOrEmpty() && body != "[]") {
+                val type = com.squareup.moshi.Types.newParameterizedType(List::class.java, TeacherAssignedCourse::class.java)
+                val result = moshi.adapter<List<TeacherAssignedCourse>>(type).fromJson(body)
+                android.util.Log.d("ApiService", "Parsed ${result?.size ?: 0} courses from view")
+                return result
             }
             
-            val type = com.squareup.moshi.Types.newParameterizedType(List::class.java, TeacherAssignedCourse::class.java)
-            val result = moshi.adapter<List<TeacherAssignedCourse>>(type).fromJson(body)
-            android.util.Log.d("ApiService", "Parsed ${result?.size ?: 0} courses")
-            result
+            android.util.Log.w("ApiService", "No courses found for teacher: $email")
+            emptyList()
         } catch (e: java.net.UnknownHostException) {
             android.util.Log.e("ApiService", "getAssignedCoursesForTeacher network error: ${e.message}", e)
-            null
+            throw RuntimeException("İnternet bağlantısı yok. Lütfen WiFi veya mobil veri bağlantınızı kontrol edin.", e)
         } catch (e: java.net.SocketTimeoutException) {
             android.util.Log.e("ApiService", "getAssignedCoursesForTeacher timeout: ${e.message}", e)
-            null
+            throw RuntimeException("Bağlantı zaman aşımına uğradı. Lütfen tekrar deneyin.", e)
+        } catch (e: java.io.IOException) {
+            android.util.Log.e("ApiService", "getAssignedCoursesForTeacher IO error: ${e.message}", e)
+            throw RuntimeException("Ağ hatası: ${e.message}. İnternet bağlantınızı kontrol edin.", e)
         } catch (e: Exception) {
             android.util.Log.e("ApiService", "getAssignedCoursesForTeacher error: ${e.javaClass.simpleName} - ${e.message}", e)
             android.util.Log.e("ApiService", "Stack trace: ${e.stackTraceToString()}")
-            null
+            throw RuntimeException("Dersler yüklenirken hata oluştu: ${e.message}", e)
         }
     }
 
@@ -387,7 +474,7 @@ class ApiService {
         }
     }
     
-    suspend fun getWeeksWithQR(courseId: Int): List<WeekWithQR>? {
+    suspend fun getWeeksWithQR(courseId: Long): List<WeekWithQR>? {
         return try {
             val httpRequest = Request.Builder()
                 .url("$functionsBaseUrl/get-weeks?course_id=$courseId")
@@ -400,18 +487,81 @@ class ApiService {
                 client.newCall(httpRequest).execute()
             }
             val responseBody = response.body?.string()
-            android.util.Log.d("ApiService", "GetWeeks Response Code: ${response.code}")
-            android.util.Log.d("ApiService", "GetWeeks Response Body: $responseBody")
+            android.util.Log.d("ApiService", "getWeeksWithQR (edge) code=${response.code} body=$responseBody")
             
             if (response.isSuccessful) {
                 val result = moshi.adapter(GetWeeksResponse::class.java).fromJson(responseBody)
-                result?.weeks
+                val weeks = result?.weeks
+                android.util.Log.d("ApiService", "getWeeksWithQR courseId=$courseId found=${weeks?.size ?: 0} weeks")
+                weeks ?: getWeeksWithQRRestFallback(courseId)
             } else {
-                android.util.Log.e("ApiService", "GetWeeks HTTP Error: ${response.code} - $responseBody")
-                null
+                android.util.Log.e("ApiService", "getWeeksWithQR failed: ${response.code} body=$responseBody")
+                getWeeksWithQRRestFallback(courseId)
             }
         } catch (e: Exception) {
-            android.util.Log.e("ApiService", "Exception in getWeeksWithQR: ${e.message}", e)
+            android.util.Log.e("ApiService", "getWeeksWithQR error: ${e.message}", e)
+            getWeeksWithQRRestFallback(courseId)
+        }
+    }
+
+    private suspend fun getWeeksWithQRRestFallback(courseId: Long): List<WeekWithQR>? {
+        return try {
+            val httpRequest = Request.Builder()
+                .url("$restBaseUrl/qr_codes?course_id=eq.$courseId&is_active=eq.true&select=course_id,week_number,created_at,is_active&order=week_number.asc")
+                .get()
+                .addHeader("Authorization", "Bearer $anonKey")
+                .addHeader("apikey", anonKey)
+                .addHeader("Content-Type", "application/json")
+                .build()
+
+            val response = withContext(Dispatchers.IO) {
+                client.newCall(httpRequest).execute()
+            }
+            val responseBody = response.body?.string()
+            android.util.Log.d("ApiService", "getWeeksWithQR fallback (REST) code=${response.code} body=$responseBody")
+
+            if (!response.isSuccessful) {
+                android.util.Log.e("ApiService", "getWeeksWithQR fallback failed: ${response.code} body=$responseBody")
+                return null
+            }
+
+            val type = Types.newParameterizedType(List::class.java, WeekWithQR::class.java)
+            val weeks = moshi.adapter<List<WeekWithQR>>(type).fromJson(responseBody ?: "[]")
+            android.util.Log.d("ApiService", "getWeeksWithQR fallback parsed ${weeks?.size ?: 0} weeks for courseId=$courseId")
+            weeks
+        } catch (e: Exception) {
+            android.util.Log.e("ApiService", "getWeeksWithQR fallback error: ${e.message}", e)
+            null
+        }
+    }
+    
+    suspend fun getCourseWeeks(courseId: Long): List<CourseWeek>? {
+        return try {
+            val httpRequest = Request.Builder()
+                .url("$restBaseUrl/course_weeks?course_id=eq.$courseId&select=id,course_id,week_number,has_qr,locked&order=week_number.asc")
+                .get()
+                .addHeader("Authorization", "Bearer $anonKey")
+                .addHeader("apikey", anonKey)
+                .addHeader("Content-Type", "application/json")
+                .build()
+
+            val response = withContext(Dispatchers.IO) {
+                client.newCall(httpRequest).execute()
+            }
+            val responseBody = response.body?.string()
+            android.util.Log.d("ApiService", "getCourseWeeks code=${response.code} body=$responseBody")
+
+            if (!response.isSuccessful) {
+                android.util.Log.e("ApiService", "getCourseWeeks failed: ${response.code} body=$responseBody")
+                return null
+            }
+
+            val type = Types.newParameterizedType(List::class.java, CourseWeek::class.java)
+            val weeks = moshi.adapter<List<CourseWeek>>(type).fromJson(responseBody ?: "[]")
+            android.util.Log.d("ApiService", "getCourseWeeks parsed ${weeks?.size ?: 0} weeks for courseId=$courseId")
+            weeks
+        } catch (e: Exception) {
+            android.util.Log.e("ApiService", "getCourseWeeks error: ${e.message}", e)
             null
         }
     }
@@ -451,11 +601,11 @@ class ApiService {
             android.util.Log.d("ApiService", "=== getStudentAttendanceStatus START ===")
             android.util.Log.d("ApiService", "Student email: $studentEmail")
             
-            // Önce öğrencinin class_id'sini bul
+            // Önce öğrencinin department_id'sini bul (bölümdeki tüm dersleri göstermek için)
             val encodedEmail = java.net.URLEncoder.encode(studentEmail, "UTF-8")
-            val studentUrl = "$restBaseUrl/students?select=class_id&email=eq.$encodedEmail"
+            val studentUrl = "$restBaseUrl/students?select=class_id,department_id&email=eq.$encodedEmail"
             
-            android.util.Log.d("ApiService", "Step 1: Getting student class: $studentUrl")
+            android.util.Log.d("ApiService", "Step 1: Getting student class and department: $studentUrl")
             
             val studentRequest = Request.Builder()
                 .url(studentUrl)
@@ -483,16 +633,17 @@ class ApiService {
                 return emptyList()
             }
             
-            // Parse student data to get class_id
+            // Parse student data to get class_id and department_id
             val studentData = moshi.adapter(List::class.java).fromJson(studentBody) as? List<Map<String, Any>>
             val classId = studentData?.firstOrNull()?.get("class_id")?.toString()
+            val departmentId = studentData?.firstOrNull()?.get("department_id")?.toString()
             
-            if (classId.isNullOrBlank() || classId == "null") {
-                android.util.Log.e("ApiService", "Student has no class_id. Student data: $studentData")
+            if (departmentId.isNullOrBlank() || departmentId == "null") {
+                android.util.Log.e("ApiService", "Student has no department_id. Student data: $studentData")
                 return emptyList()
             }
             
-            android.util.Log.d("ApiService", "Step 2: Student class_id: $classId")
+            android.util.Log.d("ApiService", "Step 2: Student class_id: $classId, department_id: $departmentId")
             
             // Öğrencinin profile id'sini bul (attendances için)
             val profileUrl = "$restBaseUrl/profiles?select=id&email=eq.$encodedEmail"
@@ -583,9 +734,67 @@ class ApiService {
             
             val result = mutableListOf<StudentCourseWithWeeks>()
             
-            // Eğer attendances'ten ders bulduysak, onları kullan
-            if (courseIdsFromAttendances.isNotEmpty()) {
-                android.util.Log.d("ApiService", "Using courses from attendances: $courseIdsFromAttendances")
+            // ÖNEMLİ: Öğrencinin bölümündeki TÜM dersleri göster (yoklamaya katılmış olsun olmasın)
+            // Önce bölümdeki tüm dersleri çek
+            android.util.Log.d("ApiService", "Step 4: Getting all courses for department_id: $departmentId")
+            val departmentCoursesUrl = "$restBaseUrl/courses?select=id,name,code&department_id=eq.$departmentId&limit=100"
+            android.util.Log.d("ApiService", "Getting department courses: $departmentCoursesUrl")
+            
+            val departmentCoursesRequest = Request.Builder()
+                .url(departmentCoursesUrl)
+                .get()
+                .addHeader("apikey", anonKey)
+                .addHeader("Authorization", "Bearer $anonKey")
+                .addHeader("Content-Type", "application/json")
+                .build()
+            
+            val departmentCoursesResponse = withContext(Dispatchers.IO) {
+                client.newCall(departmentCoursesRequest).execute()
+            }
+            val departmentCoursesBody = departmentCoursesResponse.body?.string()
+            
+            android.util.Log.d("ApiService", "Department courses response code: ${departmentCoursesResponse.code}")
+            android.util.Log.d("ApiService", "Department courses response body: $departmentCoursesBody")
+            
+            if (departmentCoursesResponse.isSuccessful && !departmentCoursesBody.isNullOrEmpty() && departmentCoursesBody != "[]") {
+                val departmentCoursesData = moshi.adapter(List::class.java).fromJson(departmentCoursesBody) as? List<Map<String, Any>>
+                android.util.Log.d("ApiService", "Found ${departmentCoursesData?.size ?: 0} courses in department")
+                
+                departmentCoursesData?.forEachIndexed { index, course ->
+                    val courseIdValue = course["id"]
+                    val courseId = when (courseIdValue) {
+                        is Number -> courseIdValue.toLong()
+                        is String -> {
+                            android.util.Log.w("ApiService", "Course ID is UUID string, skipping: $courseIdValue")
+                            return@forEachIndexed
+                        }
+                        else -> {
+                            android.util.Log.w("ApiService", "Course ID is unknown type: ${courseIdValue?.javaClass?.simpleName}")
+                            return@forEachIndexed
+                        }
+                    }
+                    
+                    val courseName = course["name"] as? String
+                    if (courseName.isNullOrBlank()) {
+                        android.util.Log.w("ApiService", "Course $index has no name")
+                        return@forEachIndexed
+                    }
+                    
+                    val courseCode = course["code"] as? String
+                    
+                    android.util.Log.d("ApiService", "Department course: id=$courseId, name=$courseName, code=$courseCode")
+                    result.add(StudentCourseWithWeeks(
+                        courseId = courseId,
+                        courseName = courseName,
+                        courseCode = courseCode,
+                        weeks = emptyList() // Haftaları daha sonra toplu olarak dolduracağız
+                    ))
+                }
+            } else {
+                android.util.Log.w("ApiService", "Could not get department courses. Falling back to old method.")
+                // Fallback: Eğer attendances'ten ders bulduysak, onları kullan
+                if (courseIdsFromAttendances.isNotEmpty()) {
+                    android.util.Log.d("ApiService", "Using courses from attendances: $courseIdsFromAttendances")
                 
                 // Bu derslerin detaylarını çek
                 val courseIdsStr = courseIdsFromAttendances.joinToString(",")
@@ -823,6 +1032,7 @@ class ApiService {
                             weeks = emptyList() // Haftaları daha sonra toplu olarak dolduracağız
                         ))
                     }
+                }
                 }
             }
             

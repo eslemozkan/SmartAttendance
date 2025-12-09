@@ -49,3 +49,4 @@ GRANT SELECT ON public.student_courses_by_class TO anon, authenticated;
 -- Notify PostgREST
 NOTIFY pgrst, 'reload schema';
 
+

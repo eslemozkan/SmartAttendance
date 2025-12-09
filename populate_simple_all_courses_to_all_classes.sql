@@ -40,3 +40,4 @@ LEFT JOIN public.profiles p ON p.id = cca.teacher_id
 ORDER BY cl.name, c.name
 LIMIT 10;
 
+

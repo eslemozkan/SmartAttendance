@@ -112,3 +112,4 @@ WHERE table_schema = 'public'
   AND table_name = 'course_class_assignments'
 ORDER BY ordinal_position;
 
+

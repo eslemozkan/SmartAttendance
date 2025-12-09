@@ -1,11 +1,11 @@
 [
     {
-        "merged": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-debug-43:\\drawable_spinner_dropdown_selector.xml.flat",
-        "source": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-main-45:\\drawable\\spinner_dropdown_selector.xml"
-    },
-    {
         "merged": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-debug-43:\\layout_item_attendance.xml.flat",
         "source": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-main-45:\\layout\\item_attendance.xml"
+    },
+    {
+        "merged": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-debug-43:\\drawable_spinner_dropdown_selector.xml.flat",
+        "source": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-main-45:\\drawable\\spinner_dropdown_selector.xml"
     },
     {
         "merged": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-debug-43:\\drawable_button_academic_secondary.xml.flat",
@@ -94,10 +94,6 @@
     {
         "merged": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-debug-43:\\layout_activity_attendance_list.xml.flat",
         "source": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-main-45:\\layout\\activity_attendance_list.xml"
-    },
-    {
-        "merged": "com.smartattendance.app-debug-43:/layout_item_student_course.xml.flat",
-        "source": "com.smartattendance.app-main-45:/layout/item_student_course.xml"
     },
     {
         "merged": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-debug-43:\\layout_activity_student.xml.flat",

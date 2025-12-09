@@ -70,3 +70,4 @@ val assignmentsUrl = "$restBaseUrl/student_course_assignments?select=course_id_b
 3. RLS politikalarını kontrol edin: `SELECT * FROM pg_policies WHERE tablename = 'course_class_assignments'`
 4. Permissions'ı kontrol edin: `SELECT * FROM information_schema.role_table_grants WHERE table_name = 'course_class_assignments'`
 
+

@@ -34,3 +34,4 @@ GRANT SELECT ON public.profiles TO anon, authenticated;
 -- Notify PostgREST to reload schema
 NOTIFY pgrst, 'reload schema';
 
+

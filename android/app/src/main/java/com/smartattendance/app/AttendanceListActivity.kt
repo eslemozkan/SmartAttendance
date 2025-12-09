@@ -60,7 +60,7 @@ class AttendanceListActivity : AppCompatActivity() {
                     Course(id, courseIdString, name, code, "") // courseId'yi String olarak sakla
                 }
                 if (mapped.isNotEmpty()) {
-                    courses = mapped + courses.filter { it.id == 4 }
+                    courses = mapped
                     runOnUiThread { setupCourseSpinner() }
                 }
             }
@@ -76,7 +76,7 @@ class AttendanceListActivity : AppCompatActivity() {
         binding.spinnerCourse.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
                 selectedCourse = courses[position]
-                if (selectedCourse?.id != 4) {
+                if (selectedCourse != null) {
                     loadWeeksForCourse(selectedCourse!!)
                 } else {
                     weeksWithQR = emptyList()
@@ -124,7 +124,28 @@ class AttendanceListActivity : AppCompatActivity() {
         
         lifecycleScope.launch {
             try {
-                val weeks = supabaseService.getWeeksWithQR(course.id)
+                // Convert course.uuid (String) to Long for API call
+                val courseIdLong = if (!course.uuid.isNullOrBlank()) {
+                    try {
+                        course.uuid.toLong()
+                    } catch (e: NumberFormatException) {
+                        android.util.Log.e("AttendanceListActivity", "Invalid courseId format: ${course.uuid}")
+                        runOnUiThread {
+                            binding.progressBar.visibility = android.view.View.GONE
+                            Toast.makeText(this@AttendanceListActivity, "Ders ID geçersiz", Toast.LENGTH_SHORT).show()
+                        }
+                        return@launch
+                    }
+                } else {
+                    android.util.Log.e("AttendanceListActivity", "Missing courseId for course: ${course.name}")
+                    runOnUiThread {
+                        binding.progressBar.visibility = android.view.View.GONE
+                        Toast.makeText(this@AttendanceListActivity, "Ders ID bulunamadı", Toast.LENGTH_SHORT).show()
+                    }
+                    return@launch
+                }
+                
+                val weeks = supabaseService.getWeeksWithQR(courseIdLong)
                 android.util.Log.d("AttendanceListActivity", "Received weeks: $weeks")
                 
                 runOnUiThread {
@@ -155,7 +176,29 @@ class AttendanceListActivity : AppCompatActivity() {
         
         lifecycleScope.launch {
             try {
-                val attendance = supabaseService.getAttendanceForWeek(selectedCourse!!.id, week.week_number)
+                // Convert course.uuid (String) to Long for API call
+                val course = selectedCourse
+                if (course == null || course.uuid.isNullOrBlank()) {
+                    android.util.Log.e("AttendanceListActivity", "Missing courseId for selected course")
+                    runOnUiThread {
+                        binding.progressBar.visibility = android.view.View.GONE
+                        Toast.makeText(this@AttendanceListActivity, "Ders ID bulunamadı", Toast.LENGTH_SHORT).show()
+                    }
+                    return@launch
+                }
+                
+                val courseIdLong = try {
+                    course.uuid!!.toLong()
+                } catch (e: NumberFormatException) {
+                    android.util.Log.e("AttendanceListActivity", "Invalid courseId format: ${course.uuid}")
+                    runOnUiThread {
+                        binding.progressBar.visibility = android.view.View.GONE
+                        Toast.makeText(this@AttendanceListActivity, "Ders ID geçersiz", Toast.LENGTH_SHORT).show()
+                    }
+                    return@launch
+                }
+                
+                val attendance = supabaseService.getAttendanceForWeek(courseIdLong, week.week_number)
                 
                 runOnUiThread {
                     binding.progressBar.visibility = android.view.View.GONE

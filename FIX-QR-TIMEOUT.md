@@ -85,3 +85,4 @@ ORDER BY ordinal_position;
 - RLS disable edilmeli (development için)
 - Environment variables mutlaka ayarlanmalı
 
+

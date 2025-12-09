@@ -89,3 +89,4 @@ Eğer Edge Function çalışıyorsa:
    adb logcat | grep ApiService
    ```
 
+

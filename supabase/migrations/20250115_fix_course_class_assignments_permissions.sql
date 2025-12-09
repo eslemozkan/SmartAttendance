@@ -94,3 +94,4 @@ WHERE table_schema = 'public'
   AND grantee IN ('anon', 'authenticated')
 ORDER BY table_name, grantee;
 
+

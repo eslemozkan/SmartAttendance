@@ -59,3 +59,4 @@ SELECT
 FROM public.teacher_courses
 LIMIT 5;
 
+

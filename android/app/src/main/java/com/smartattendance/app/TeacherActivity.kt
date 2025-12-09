@@ -21,12 +21,15 @@ import kotlinx.coroutines.withContext
 import java.util.*
 
 class TeacherActivity : AppCompatActivity() {
+    private val NO_COURSE_ID = -1
+    private val prefs by lazy { getSharedPreferences("teacher_qr", MODE_PRIVATE) }
+    private var countdownTimer: Timer? = null
     private lateinit var binding: ActivityTeacherBinding
     private val apiService = ApiService()
     
     // Dynamic courses loaded from Supabase (fallback includes "Ders Yok")
     private var courses: List<Course> = listOf(
-        Course(4, null, "Ders Yok", "", "") // "Ders Yok" has no UUID
+        Course(NO_COURSE_ID, null, "Ders Yok", "", "") // "Ders Yok" has no UUID
     )
     
     private val weeks = listOf(
@@ -69,6 +72,8 @@ class TeacherActivity : AppCompatActivity() {
         val email = intent.getStringExtra("email") ?: ""
 
         setupUI()
+        restoreCreatedWeeks()
+        restoreActiveQRIfAny()
 
         // Load assigned courses for this teacher by email (if available)
         if (email.isNotBlank()) {
@@ -97,16 +102,16 @@ class TeacherActivity : AppCompatActivity() {
                         // courseIdLong'u String'e çevirip uuid field'ında sakla (QR oluştururken kullanmak için)
                         val courseIdString = courseIdLong.toString()
                         
-                        android.util.Log.d("TeacherActivity", "Mapped course: id=$id, courseId=$courseIdLong, name=$name, code=$code")
+                        android.util.Log.d("TeacherActivity", "Mapped course: id=$id, courseId=$courseIdLong, name=$name, code=$code, uuid=$courseIdString")
                         Course(id, courseIdString, name, code, "") // courseId'yi String olarak sakla
                     }
                     
                     android.util.Log.d("TeacherActivity", "Mapped ${mapped.size} courses")
                     
                     if (mapped.isNotEmpty()) {
-                        courses = mapped + courses.filter { it.id == 4 }
+                        courses = mapped + courses.filter { it.id == NO_COURSE_ID }
                         runOnUiThread { 
-                            setupCourseSpinner()
+                            updateCourseSpinnerAdapter()
                             android.util.Log.d("TeacherActivity", "Course spinner updated with ${courses.size} courses")
                         }
                     } else {
@@ -117,8 +122,17 @@ class TeacherActivity : AppCompatActivity() {
                     }
                 } catch (e: Exception) {
                     android.util.Log.e("TeacherActivity", "Error loading courses: ${e.message}", e)
+                    val errorMessage = when {
+                        e.message?.contains("Unable to resolve host") == true || 
+                        e.message?.contains("No address associated") == true -> 
+                            "İnternet bağlantısı yok. Lütfen bağlantınızı kontrol edin."
+                        e.message?.contains("timeout") == true || 
+                        e.message?.contains("SocketTimeoutException") == true -> 
+                            "Bağlantı zaman aşımına uğradı. Lütfen tekrar deneyin."
+                        else -> "Dersler yüklenirken hata: ${e.message}"
+                    }
                     runOnUiThread {
-                        Toast.makeText(this@TeacherActivity, "Dersler yüklenirken hata: ${e.message}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@TeacherActivity, errorMessage, Toast.LENGTH_LONG).show()
                     }
                 }
             }
@@ -166,19 +180,32 @@ class TeacherActivity : AppCompatActivity() {
     }
     
     private fun setupCourseSpinner() {
+        updateCourseSpinnerAdapter()
+        
+        binding.spinnerCourse.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
+                android.util.Log.d("TeacherActivity", "Spinner item selected: position=$position, total=${courses.size}")
+                if (position < courses.size) {
+                    val selectedCourse = courses[position]
+                    android.util.Log.d("TeacherActivity", "Selected course: ${selectedCourse.name}, id=${selectedCourse.id}, uuid=${selectedCourse.uuid}")
+                    updateCourseInfo(selectedCourse)
+                } else {
+                    android.util.Log.e("TeacherActivity", "Invalid position: $position >= ${courses.size}")
+                }
+            }
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {
+                android.util.Log.d("TeacherActivity", "Nothing selected in spinner")
+            }
+        }
+    }
+    
+    private fun updateCourseSpinnerAdapter() {
+        android.util.Log.d("TeacherActivity", "updateCourseSpinnerAdapter: ${courses.size} courses")
         val courseAdapter = CustomSpinnerAdapter(
             this,
             courses.map { if (it.code.isNotBlank()) "${it.name} (${it.code})" else it.name }
         )
         binding.spinnerCourse.adapter = courseAdapter
-        
-        binding.spinnerCourse.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
-                val selectedCourse = courses[position]
-                updateCourseInfo(selectedCourse)
-            }
-            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
-        }
     }
     
     private fun setupWeekSpinner() {
@@ -191,12 +218,22 @@ class TeacherActivity : AppCompatActivity() {
     }
     
     private fun updateCourseInfo(course: Course) {
-        if (course.id == 4) { // "Ders Yok" option
-            binding.tvStatus.text = "Bu hafta ders yapılmayacak"
+        // QR kod aktifse status'u değiştirme (QR kodun kendi ders bilgisi gösterilmeli)
+        val qrIsActive = binding.btnStopAttendance.isEnabled
+        
+        if (course.id == NO_COURSE_ID) { // "Ders Yok" option
+            if (!qrIsActive) {
+                binding.tvStatus.text = "Bu hafta ders yapılmayacak"
+            }
             binding.btnGenerateQR.isEnabled = false
         } else {
-            binding.tvStatus.text = "${course.name} - ${course.schedule}"
+            if (!qrIsActive) {
+                binding.tvStatus.text = "${course.name} - ${course.schedule}"
+            }
             binding.btnGenerateQR.isEnabled = true
+            // Sunucudan bu ders için oluşturulmuş QR haftalarını çek
+            android.util.Log.d("TeacherActivity", "updateCourseInfo: ${course.name}, uuid=${course.uuid}, id=${course.id}")
+            refreshWeeksFromServer(course)
         }
     }
     
@@ -204,7 +241,7 @@ class TeacherActivity : AppCompatActivity() {
         val selectedCourse = courses[binding.spinnerCourse.selectedItemPosition]
         
         // Check if it's "Ders Yok" option
-        if (selectedCourse.id == 4) {
+        if (selectedCourse.id == NO_COURSE_ID) {
             Toast.makeText(this, "Bu ders için yoklama alınmıyor", Toast.LENGTH_SHORT).show()
             return
         }
@@ -299,7 +336,7 @@ class TeacherActivity : AppCompatActivity() {
         }
         
         // Check if it's "Ders Yok" option
-        if (selectedCourse.id == 4) {
+        if (selectedCourse.id == NO_COURSE_ID) {
             Toast.makeText(this, "Bu hafta ders yapılmayacak", Toast.LENGTH_SHORT).show()
             return
         }
@@ -364,19 +401,28 @@ class TeacherActivity : AppCompatActivity() {
                     }
                 """.trimIndent()
 
-                // Mark this week as having QR code created
+                // Mark this week as having QR code created (persisted)
                 qrCreatedWeeks.add(weekKey)
+                persistCreatedWeeks()
 
                 // Update status with course and week info
                 binding.tvStatus.text = "${selectedCourse.name} - ${selectedWeek.name} için QR kod oluşturuldu!"
 
-                val qrBitmap = generateQRBitmap(qrJson)
-                binding.ivQRCode.setImageBitmap(qrBitmap)
-                binding.tvStatus.text = "${selectedCourse.name} - ${selectedWeek.name} için QR kod oluşturuldu! ($duration dakika geçerli)"
-                binding.btnStopAttendance.isEnabled = true
+                val expiresAtEpoch = runCatching {
+                    Instant.parse(qrData.createdAt).epochSecond + qrData.expireAfter * 60
+                }.getOrElse {
+                    android.util.Log.w("TeacherActivity", "Unable to parse createdAt, using now for expiry")
+                    Instant.now().epochSecond + qrData.expireAfter * 60
+                }
 
-                // Start countdown
-                startCountdown(duration * 60)
+                persistActiveQR(
+                    qrJson = qrJson,
+                    expiresAt = expiresAtEpoch,
+                    courseName = selectedCourse.name,
+                    weekName = selectedWeek.name
+                )
+
+                showActiveQR(qrJson, expiresAtEpoch, selectedCourse.name, selectedWeek.name)
 
             } catch (e: Exception) {
                 android.util.Log.e("TeacherActivity", "QR creation error: ${e.javaClass.simpleName} - ${e.message}", e)
@@ -420,32 +466,149 @@ class TeacherActivity : AppCompatActivity() {
     }
 
     private fun startCountdown(seconds: Int) {
+        countdownTimer?.cancel()
         var remainingSeconds = seconds
-        val timer = Timer()
-        
-        timer.scheduleAtFixedRate(object : TimerTask() {
-            override fun run() {
-                runOnUiThread {
-                    val minutes = remainingSeconds / 60
-                    val secs = remainingSeconds % 60
-                    binding.tvCountdown.text = String.format("%02d:%02d", minutes, secs)
-                    
-                    if (remainingSeconds <= 0) {
-                        timer.cancel()
-                        binding.tvStatus.text = "QR Code expired"
-                        binding.btnStopAttendance.isEnabled = false
-                        binding.ivQRCode.setImageDrawable(null)
+        countdownTimer = Timer().apply {
+            scheduleAtFixedRate(object : TimerTask() {
+                override fun run() {
+                    runOnUiThread {
+                        val minutes = remainingSeconds / 60
+                        val secs = remainingSeconds % 60
+                        binding.tvCountdown.text = String.format("%02d:%02d", minutes, secs)
+
+                        if (remainingSeconds <= 0) {
+                            cancel()
+                            clearActiveQR()
+                            binding.tvStatus.text = "QR süresi doldu"
+                            binding.btnStopAttendance.isEnabled = false
+                            binding.ivQRCode.setImageDrawable(null)
+                        }
+                        remainingSeconds--
                     }
-                    remainingSeconds--
                 }
-            }
-        }, 0, 1000)
+            }, 0, 1000)
+        }
     }
 
     private fun stopAttendance() {
-        binding.tvStatus.text = "Attendance stopped"
+        countdownTimer?.cancel()
+        clearActiveQR()
+        binding.tvStatus.text = "Yoklama durduruldu"
         binding.tvCountdown.text = "00:00"
         binding.btnStopAttendance.isEnabled = false
         binding.ivQRCode.setImageDrawable(null)
+    }
+
+    private fun persistActiveQR(qrJson: String, expiresAt: Long, courseName: String, weekName: String) {
+        prefs.edit()
+            .putString("qr_json", qrJson)
+            .putLong("qr_expires_at", expiresAt)
+            .putString("qr_course_name", courseName)
+            .putString("qr_week_name", weekName)
+            .apply()
+    }
+
+    private fun clearActiveQR() {
+        prefs.edit()
+            .remove("qr_json")
+            .remove("qr_expires_at")
+            .remove("qr_course_name")
+            .remove("qr_week_name")
+            .apply()
+    }
+
+    private fun persistCreatedWeeks() {
+        // store as comma-separated "courseId-weekId"
+        val serialized = qrCreatedWeeks.joinToString(",") { "${it.first}-${it.second}" }
+        prefs.edit().putString("qr_created_weeks", serialized).apply()
+    }
+
+    private fun restoreCreatedWeeks() {
+        val serialized = prefs.getString("qr_created_weeks", null) ?: return
+        if (serialized.isBlank()) return
+        serialized.split(",").forEach { entry ->
+            val parts = entry.split("-")
+            if (parts.size == 2) {
+                val cId = parts[0].toIntOrNull()
+                val wId = parts[1].toIntOrNull()
+                if (cId != null && wId != null) {
+                    qrCreatedWeeks.add(Pair(cId, wId))
+                }
+            }
+        }
+    }
+
+    private fun restoreActiveQRIfAny() {
+        val qrJson = prefs.getString("qr_json", null) ?: return
+        val expiresAt = prefs.getLong("qr_expires_at", 0L)
+        val courseName = prefs.getString("qr_course_name", "") ?: ""
+        val weekName = prefs.getString("qr_week_name", "") ?: ""
+
+        if (expiresAt <= 0L) {
+            clearActiveQR()
+            return
+        }
+
+        val now = Instant.now().epochSecond
+        val remaining = (expiresAt - now).toInt()
+        if (remaining <= 0) {
+            clearActiveQR()
+            return
+        }
+
+        showActiveQR(qrJson, expiresAt, courseName, weekName)
+    }
+
+    private fun showActiveQR(qrJson: String, expiresAt: Long, courseName: String, weekName: String) {
+        val qrBitmap = generateQRBitmap(qrJson)
+        binding.ivQRCode.setImageBitmap(qrBitmap)
+        val now = Instant.now().epochSecond
+        val remainingSeconds = (expiresAt - now).toInt().coerceAtLeast(0)
+        binding.tvStatus.text = "$courseName - $weekName için QR kod aktif"
+        binding.btnStopAttendance.isEnabled = true
+        startCountdown(remainingSeconds)
+    }
+
+    private fun refreshWeeksFromServer(course: Course) {
+        android.util.Log.d("TeacherActivity", "=== refreshWeeksFromServer START ===")
+        android.util.Log.d("TeacherActivity", "Course: name=${course.name}, id=${course.id}, uuid=${course.uuid}, uuid.isNullOrBlank=${course.uuid.isNullOrBlank()}")
+        
+        val courseIdLong = course.uuid?.toLongOrNull()
+        if (courseIdLong == null) {
+            android.util.Log.e("TeacherActivity", "refreshWeeksFromServer FAILED: courseIdLong is null for ${course.name}")
+            android.util.Log.e("TeacherActivity", "  - course.uuid = ${course.uuid}")
+            android.util.Log.e("TeacherActivity", "  - course.uuid?.toLongOrNull() = null")
+            runOnUiThread {
+                Toast.makeText(this@TeacherActivity, "Ders ID bulunamadı: ${course.name}", Toast.LENGTH_SHORT).show()
+            }
+            return
+        }
+
+        android.util.Log.d("TeacherActivity", "refreshWeeksFromServer: Fetching weeks for courseId=$courseIdLong (${course.name})")
+        android.util.Log.d("TeacherActivity", "🔍 DEBUG: Querying qr_codes WHERE course_id=$courseIdLong AND is_active=true")
+        lifecycleScope.launch {
+            try {
+                val weeks = apiService.getWeeksWithQR(courseIdLong)
+                android.util.Log.d("TeacherActivity", "refreshWeeksFromServer: API returned ${weeks?.size ?: 0} weeks for ${course.name} (courseId=$courseIdLong)")
+                if (weeks != null && weeks.isNotEmpty()) {
+                    // Bu derse ait önceki kayıtları temizle, gelen haftaları ekle
+                    val removed = qrCreatedWeeks.removeAll { it.first == course.id }
+                    android.util.Log.d("TeacherActivity", "Removed $removed old entries for course.id=${course.id}")
+                    weeks.forEach { week ->
+                        qrCreatedWeeks.add(Pair(course.id, week.week_number))
+                        android.util.Log.d("TeacherActivity", "Added week: course.id=${course.id}, week.week_number=${week.week_number}")
+                    }
+                    persistCreatedWeeks()
+                    android.util.Log.d("TeacherActivity", "=== refreshWeeksFromServer SUCCESS: ${weeks.size} weeks for ${course.name} ===")
+                } else {
+                    // Boş liste normal olabilir (henüz QR oluşturulmamış)
+                    qrCreatedWeeks.removeAll { it.first == course.id }
+                    persistCreatedWeeks()
+                    android.util.Log.d("TeacherActivity", "=== refreshWeeksFromServer: No weeks found for ${course.name} ===")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("TeacherActivity", "=== refreshWeeksFromServer ERROR for ${course.name}: ${e.message} ===", e)
+            }
+        }
     }
 }

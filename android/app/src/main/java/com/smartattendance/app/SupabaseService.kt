@@ -29,7 +29,7 @@ data class SupabaseError(
 @JsonClass(generateAdapter = true)
 data class QRCodeRecord(
     val id: String,
-    @Json(name = "course_id") val courseId: Int,
+    @Json(name = "course_id") val courseId: Long,
     @Json(name = "week_number") val weekNumber: Int,
     @Json(name = "created_at") val createdAt: String,
     @Json(name = "expire_after_minutes") val expireAfterMinutes: Int,
@@ -52,7 +52,7 @@ class SupabaseService {
     private val supabaseUrl = "https://oubvhffqbsxsnbtinzbl.supabase.co"
     private val anonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91YnZoZmZxYnN4c25idGluemJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4ODk4NzksImV4cCI6MjA3NjQ2NTg3OX0.kn6pYhbOFWBywNrenjZI9ZUPpOnwKugbIqZkOFcGrnI"
     
-    suspend fun getWeeksWithQR(courseId: Int): List<WeekWithQR>? {
+    suspend fun getWeeksWithQR(courseId: Long): List<WeekWithQR>? {
         return try {
             val httpRequest = Request.Builder()
                 .url("$supabaseUrl/rest/v1/qr_codes?course_id=eq.$courseId&is_active=eq.true&select=course_id,week_number,created_at,is_active&order=week_number.asc")
@@ -74,8 +74,8 @@ class SupabaseService {
                 qrCodes?.map { qrCodeMap ->
                     val map = qrCodeMap as Map<String, Any>
                     WeekWithQR(
-                        course_id = (map["course_id"] as Double).toInt(),
-                        week_number = (map["week_number"] as Double).toInt(),
+                        course_id = (map["course_id"] as Number).toLong(),
+                        week_number = (map["week_number"] as Number).toInt(),
                         created_at = map["created_at"] as String,
                         is_active = map["is_active"] as Boolean
                     )
@@ -90,7 +90,7 @@ class SupabaseService {
         }
     }
     
-    suspend fun getAttendanceForWeek(courseId: Int, weekNumber: Int): List<AttendanceRecord>? {
+    suspend fun getAttendanceForWeek(courseId: Long, weekNumber: Int): List<AttendanceRecord>? {
         return try {
             val httpRequest = Request.Builder()
                 .url("$supabaseUrl/rest/v1/attendances?course_id=eq.$courseId&week_number=eq.$weekNumber&select=student_id,marked_at,method,profiles!attendances_student_id_fkey(full_name)&order=marked_at.asc")

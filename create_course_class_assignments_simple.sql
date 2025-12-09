@@ -85,3 +85,4 @@ ORDER BY ordinal_position;
 -- 9. Show sample (should be empty initially)
 SELECT COUNT(*) AS total_assignments FROM public.course_class_assignments;
 
+

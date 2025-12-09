@@ -24,3 +24,4 @@ INSERT INTO public.settings (key, value, description) VALUES
 ON CONFLICT (key) DO NOTHING;
 
 
+

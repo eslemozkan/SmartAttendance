@@ -128,3 +128,4 @@ LEFT JOIN public.course_class_assignments cca ON cca.class_id = s.class_id
 WHERE s.email = 'student@example.com'  -- Replace with actual email
 GROUP BY s.id, s.email, s.full_name, cl.name;
 
+

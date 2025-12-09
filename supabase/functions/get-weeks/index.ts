@@ -13,26 +13,41 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // Hardcoded for testing - same as other functions
+    // Hardcoded URL (same as other functions)
     const supabaseUrl = "https://oubvhffqbsxsnbtinzbl.supabase.co";
-    const supabaseServiceRoleKey = "YOUR_SERVICE_ROLE_KEY";
-    
+
+    // Prefer service role key from env, fallback to Authorization/apikey headers
+    const headerAuth = req.headers.get("authorization") || req.headers.get("Authorization") || "";
+    const bearer = headerAuth.startsWith("Bearer ") ? headerAuth.substring(7) : "";
+    const headerApiKey = req.headers.get("apikey") || req.headers.get("x-apikey") || "";
+    const serviceKeyEnv = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    const supabaseServiceRoleKey = serviceKeyEnv || bearer || headerApiKey;
+
+    if (!supabaseServiceRoleKey) {
+      console.error("Missing Supabase service role key for get-weeks");
+      return new Response(
+        JSON.stringify({ error: "Missing Supabase service role key" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const supabaseClient = createClient(
       supabaseUrl,
       supabaseServiceRoleKey,
       {
         global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
+          headers: { Authorization: req.headers.get("Authorization") ?? "" },
         },
       }
     );
 
     const url = new URL(req.url);
     const courseId = url.searchParams.get('course_id');
+    const courseIdNum = Number(courseId);
 
-    if (!courseId) {
+    if (!courseId || Number.isNaN(courseIdNum)) {
       return new Response(
-        JSON.stringify({ error: 'course_id parameter is required' }),
+        JSON.stringify({ error: 'course_id parameter is required and must be a number' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -44,7 +59,7 @@ Deno.serve(async (req: Request) => {
     const { data: qrCodes, error } = await supabaseClient
       .from('qr_codes')
       .select('course_id, week_number, created_at, is_active')
-      .eq('course_id', parseInt(courseId))
+      .eq('course_id', courseIdNum)
       .eq('is_active', true)
       .order('week_number', { ascending: true });
 
@@ -58,6 +73,8 @@ Deno.serve(async (req: Request) => {
         }
       );
     }
+
+    console.log(`get-weeks course_id=${courseIdNum} rows=${qrCodes?.length ?? 0}`);
 
     return new Response(
       JSON.stringify({ weeks: qrCodes || [] }),
