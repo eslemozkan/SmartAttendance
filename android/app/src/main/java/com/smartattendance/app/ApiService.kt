@@ -649,6 +649,63 @@ class ApiService {
             }
             
             android.util.Log.d("ApiService", "Step 2: Student class_id: $classId, department_id: $departmentId")
+            android.util.Log.d("ApiService", "=== IMPORTANT: Student's actual class_id from database: $classId ===")
+            
+            // Öğrencinin sınıfının akademik yılını, grade_level ve department_id bilgilerini bul
+            val encodedClassIdForQuery = java.net.URLEncoder.encode(classId, "UTF-8")
+            val classUrl = "$restBaseUrl/classes?select=id,academic_year,name,grade_level,department_id&id=eq.$encodedClassIdForQuery"
+            android.util.Log.d("ApiService", "Step 2.1: Getting class academic_year: $classUrl")
+            
+            val classRequest = Request.Builder()
+                .url(classUrl)
+                .get()
+                .addHeader("apikey", anonKey)
+                .addHeader("Authorization", "Bearer $anonKey")
+                .addHeader("Content-Type", "application/json")
+                .build()
+            
+            val classResponse = withContext(Dispatchers.IO) {
+                client.newCall(classRequest).execute()
+            }
+            val classBody = classResponse.body?.string()
+            
+            android.util.Log.d("ApiService", "Class response code: ${classResponse.code}")
+            android.util.Log.d("ApiService", "Class response body: $classBody")
+            
+            var classAcademicYear: String? = null
+            var actualClassId: String? = null
+            var className: String? = null
+            var classGradeLevel: Int? = null
+            var classDepartmentId: String? = null
+            if (classResponse.isSuccessful && !classBody.isNullOrEmpty() && classBody != "[]") {
+                val classData = moshi.adapter(List::class.java).fromJson(classBody) as? List<Map<String, Any>>
+                val classInfo = classData?.firstOrNull()
+                classAcademicYear = classInfo?.get("academic_year")?.toString()
+                actualClassId = classInfo?.get("id")?.toString()
+                className = classInfo?.get("name")?.toString()
+                classGradeLevel = (classInfo?.get("grade_level") as? Number)?.toInt()
+                classDepartmentId = classInfo?.get("department_id")?.toString()
+                android.util.Log.d("ApiService", "=== Class Info from database ===")
+                android.util.Log.d("ApiService", "Class id: $actualClassId")
+                android.util.Log.d("ApiService", "Class name: $className")
+                android.util.Log.d("ApiService", "Class academic_year: $classAcademicYear")
+                android.util.Log.d("ApiService", "Class grade_level: $classGradeLevel")
+                android.util.Log.d("ApiService", "Class department_id: $classDepartmentId")
+                android.util.Log.d("ApiService", "Student department_id: $departmentId")
+                android.util.Log.d("ApiService", "=== Comparing: Student class_id ($classId) vs Actual class_id ($actualClassId) ===")
+            }
+            
+            // Eğer sınıfın akademik yılı yoksa, varsayılan olarak şu anki akademik yılı kullan
+            // (Settings tablosundan veya varsayılan değer)
+            if (classAcademicYear.isNullOrBlank() || classAcademicYear == "null") {
+                android.util.Log.w("ApiService", "Class has no academic_year, using default: 2024-2025")
+                classAcademicYear = "2024-2025"
+            }
+            
+            // Şu anki dönem bilgisini al (varsayılan: Güz)
+            val currentSemester = "Güz" // TODO: Settings tablosundan veya sistem tarihinden al
+            
+            android.util.Log.d("ApiService", "Step 2.2: Using academic_year: $classAcademicYear, semester: $currentSemester")
             
             // Öğrencinin profile id'sini bul (attendances için)
             val profileUrl = "$restBaseUrl/profiles?select=id&email=eq.$encodedEmail"
@@ -740,10 +797,23 @@ class ApiService {
             val result = mutableListOf<StudentCourseWithWeeks>()
             
             // ÖNEMLİ: Öğrencinin sınıfına atanmış dersleri göster (course_class_assignments kullanarak)
-            // Önce öğrencinin sınıfına atanmış dersleri çek
-            android.util.Log.d("ApiService", "Step 4: Getting courses assigned to class_id: $classId")
-            val assignmentsUrl = "$restBaseUrl/course_class_assignments?select=course_id,courses(id,name,code)&class_id=eq.$classId&limit=100"
+            // Önce öğrencinin sınıfına atanmış dersleri çek (sadece öğrencinin akademik yılı ve dönemindeki dersler)
+            android.util.Log.d("ApiService", "Step 4: Getting courses assigned to class_id: $classId, academic_year: $classAcademicYear, semester: $currentSemester")
+            android.util.Log.d("ApiService", "=== Query Parameters ===")
+            android.util.Log.d("ApiService", "Query class_id: $classId")
+            android.util.Log.d("ApiService", "Query academic_year: $classAcademicYear")
+            android.util.Log.d("ApiService", "Query semester: $currentSemester")
+            
+            // PostgREST için filtreleri doğru formatta oluştur
+            val encodedAcademicYear = java.net.URLEncoder.encode(classAcademicYear, "UTF-8").replace("+", "%20")
+            val encodedSemester = java.net.URLEncoder.encode(currentSemester, "UTF-8").replace("+", "%20")
+            val encodedClassId = java.net.URLEncoder.encode(classId, "UTF-8")
+            
+            // PostgREST filtreleri: academic_year ve semester için exact match
+            // courses tablosundan department_id bilgisini de al (filtreleme için)
+            val assignmentsUrl = "$restBaseUrl/course_class_assignments?select=course_id,class_id,courses(id,name,code,department_id),academic_year,semester&class_id=eq.$encodedClassId&academic_year=eq.$encodedAcademicYear&semester=eq.$encodedSemester&limit=100"
             android.util.Log.d("ApiService", "Getting class course assignments: $assignmentsUrl")
+            android.util.Log.d("ApiService", "=== End Query Parameters ===")
             
             val assignmentsRequest = Request.Builder()
                 .url(assignmentsUrl)
@@ -766,6 +836,22 @@ class ApiService {
                 android.util.Log.d("ApiService", "Found ${assignmentsData?.size ?: 0} course assignments for class")
                 
                 assignmentsData?.forEachIndexed { index, assignment ->
+                    // Log academic_year and semester for debugging
+                    val assignmentAcademicYear = assignment["academic_year"] as? String
+                    val assignmentSemester = assignment["semester"] as? String
+                    val assignmentClassId = assignment["class_id"] as? String
+                    android.util.Log.d("ApiService", "Assignment $index: class_id=$assignmentClassId, academic_year=$assignmentAcademicYear, semester=$assignmentSemester")
+                    
+                    // KOD TARAFINDA FİLTRELEME: Sadece öğrencinin sınıfına, akademik yılına ve dönemine ait dersleri göster
+                    if (assignmentClassId != classId) {
+                        android.util.Log.w("ApiService", "Assignment $index filtered out: class_id mismatch ($assignmentClassId != $classId)")
+                        return@forEachIndexed
+                    }
+                    if (assignmentAcademicYear != classAcademicYear || assignmentSemester != currentSemester) {
+                        android.util.Log.w("ApiService", "Assignment $index filtered out: academic_year mismatch ($assignmentAcademicYear != $classAcademicYear) or semester mismatch ($assignmentSemester != $currentSemester)")
+                        return@forEachIndexed
+                    }
+                    
                     // Nested structure: assignment["courses"] contains course data
                     val coursesMap = assignment["courses"] as? Map<String, Any>
                     if (coursesMap == null) {
@@ -793,8 +879,15 @@ class ApiService {
                     }
                     
                     val courseCode = coursesMap["code"] as? String
+                    val courseDepartmentId = coursesMap["department_id"]?.toString()
                     
-                    android.util.Log.d("ApiService", "Class course: id=$courseId, name=$courseName, code=$courseCode")
+                    // KOD TARAFINDA FİLTRELEME: Sadece öğrencinin bölümüne ait dersleri göster
+                    if (!courseDepartmentId.isNullOrBlank() && courseDepartmentId != "null" && courseDepartmentId != departmentId) {
+                        android.util.Log.w("ApiService", "Assignment $index filtered out: course department_id ($courseDepartmentId) != student department_id ($departmentId)")
+                        return@forEachIndexed
+                    }
+                    
+                    android.util.Log.d("ApiService", "Class course: id=$courseId, name=$courseName, code=$courseCode, department_id=$courseDepartmentId")
                     result.add(StudentCourseWithWeeks(
                         courseId = courseId,
                         courseName = courseName,
@@ -803,249 +896,9 @@ class ApiService {
                     ))
                 }
             } else {
-                android.util.Log.w("ApiService", "Could not get department courses. Falling back to old method.")
-                // Fallback: Eğer attendances'ten ders bulduysak, onları kullan
-                if (courseIdsFromAttendances.isNotEmpty()) {
-                    android.util.Log.d("ApiService", "Using courses from attendances: $courseIdsFromAttendances")
-                
-                // Bu derslerin detaylarını çek
-                val courseIdsStr = courseIdsFromAttendances.joinToString(",")
-                val coursesUrl = "$restBaseUrl/courses?select=id,name,code&id=in.($courseIdsStr)"
-                android.util.Log.d("ApiService", "Step 5: Getting course details: $coursesUrl")
-                
-                val coursesRequest = Request.Builder()
-                    .url(coursesUrl)
-                    .get()
-                    .addHeader("apikey", anonKey)
-                    .addHeader("Authorization", "Bearer $anonKey")
-                    .addHeader("Content-Type", "application/json")
-                    .build()
-                
-                val coursesResponse = withContext(Dispatchers.IO) {
-                    client.newCall(coursesRequest).execute()
-                }
-                val coursesBody = coursesResponse.body?.string()
-                
-                android.util.Log.d("ApiService", "Courses response code: ${coursesResponse.code}")
-                
-                if (coursesResponse.isSuccessful && !coursesBody.isNullOrEmpty() && coursesBody != "[]") {
-                    val coursesData = moshi.adapter(List::class.java).fromJson(coursesBody) as? List<Map<String, Any>>
-                    android.util.Log.d("ApiService", "Parsed ${coursesData?.size ?: 0} courses")
-                    
-                    coursesData?.forEachIndexed { index, course ->
-                        val courseIdValue = course["id"]
-                        val courseId = when (courseIdValue) {
-                            is Number -> courseIdValue.toLong()
-                            is String -> {
-                                android.util.Log.w("ApiService", "Course ID is UUID string, skipping: $courseIdValue")
-                                return@forEachIndexed
-                            }
-                            else -> {
-                                android.util.Log.w("ApiService", "Course ID is unknown type: ${courseIdValue?.javaClass?.simpleName}")
-                                return@forEachIndexed
-                            }
-                        }
-                        
-                        val courseName = course["name"] as? String
-                        if (courseName.isNullOrBlank()) {
-                            android.util.Log.w("ApiService", "Course $index has no name")
-                            return@forEachIndexed
-                        }
-                        
-                        val courseCode = course["code"] as? String
-                        
-                        android.util.Log.d("ApiService", "Course: id=$courseId, name=$courseName, code=$courseCode")
-                        result.add(StudentCourseWithWeeks(
-                            courseId = courseId,
-                            courseName = courseName,
-                            courseCode = courseCode,
-                            weeks = emptyList() // Haftaları daha sonra toplu olarak dolduracağız
-                        ))
-                    }
-                }
-            } else {
-                // Eğer attendances'ten ders bulamadıysak, course_class_assignments'ten al
-                android.util.Log.d("ApiService", "No courses from attendances, trying course_class_assignments")
-                val assignmentsUrl = "$restBaseUrl/course_class_assignments?select=course_id&class_id=eq.$classId&limit=100"
-                android.util.Log.d("ApiService", "Step 4a: Getting course assignments: $assignmentsUrl")
-                
-                val assignmentsRequest = Request.Builder()
-                    .url(assignmentsUrl)
-                    .get()
-                    .addHeader("apikey", anonKey)
-                    .addHeader("Authorization", "Bearer $anonKey")
-                    .addHeader("Content-Type", "application/json")
-                    .addHeader("Prefer", "return=representation")
-                    .build()
-                
-                val assignmentsResponse = try {
-                    withContext(Dispatchers.IO) {
-                        client.newCall(assignmentsRequest).execute()
-                    }
-                } catch (e: java.net.SocketTimeoutException) {
-                    android.util.Log.e("ApiService", "Timeout getting course_class_assignments. This might be an RLS/permission issue.")
-                    android.util.Log.e("ApiService", "Trying alternative approach: query courses directly")
-                    null
-                }
-                
-                val assignmentsBody = assignmentsResponse?.body?.string()
-                android.util.Log.d("ApiService", "Assignments response code: ${assignmentsResponse?.code}")
-                android.util.Log.d("ApiService", "Assignments response body: $assignmentsBody")
-                
-                // Eğer course_class_assignments'e erişilemiyorsa, alternatif yaklaşım dene
-                if (assignmentsResponse == null || !assignmentsResponse.isSuccessful || assignmentsBody.isNullOrEmpty() || assignmentsBody == "[]") {
-                    android.util.Log.w("ApiService", "Could not get course_class_assignments. Trying alternative: get all courses for now")
-                    // Alternatif: Tüm dersleri çek (geçici çözüm - daha sonra düzeltilebilir)
-                    val allCoursesUrl = "$restBaseUrl/courses?select=id,name,code&limit=100"
-                    android.util.Log.d("ApiService", "Step 4b (alternative): Getting all courses: $allCoursesUrl")
-                    
-                    val allCoursesRequest = Request.Builder()
-                        .url(allCoursesUrl)
-                        .get()
-                        .addHeader("apikey", anonKey)
-                        .addHeader("Authorization", "Bearer $anonKey")
-                        .addHeader("Content-Type", "application/json")
-                        .build()
-                    
-                    val allCoursesResponse = withContext(Dispatchers.IO) {
-                        client.newCall(allCoursesRequest).execute()
-                    }
-                    val allCoursesBody = allCoursesResponse.body?.string()
-                    
-                    android.util.Log.d("ApiService", "All courses response code: ${allCoursesResponse.code}")
-                    
-                    if (!allCoursesResponse.isSuccessful || allCoursesBody.isNullOrEmpty() || allCoursesBody == "[]") {
-                        android.util.Log.e("ApiService", "Could not get courses either. Returning empty list.")
-                        return emptyList()
-                    }
-                    
-                    // Parse all courses
-                    val allCoursesData = moshi.adapter(List::class.java).fromJson(allCoursesBody) as? List<Map<String, Any>>
-                    android.util.Log.d("ApiService", "Parsed ${allCoursesData?.size ?: 0} courses (alternative method)")
-                    
-                    // Use all courses as fallback (not ideal, but works for testing)
-                    val coursesData = allCoursesData ?: emptyList()
-                    
-                    // Process courses from alternative method
-                    coursesData.forEachIndexed { index, course ->
-                        android.util.Log.d("ApiService", "Processing course $index: $course")
-                        
-                        // courses.id BIGINT veya UUID olabilir
-                        val courseIdValue = course["id"]
-                        val courseId = when (courseIdValue) {
-                            is Number -> courseIdValue.toLong()
-                            is String -> {
-                                // UUID string ise, Long'a çeviremeyiz, atla
-                                android.util.Log.w("ApiService", "Course ID is UUID string, skipping: $courseIdValue")
-                                return@forEachIndexed
-                            }
-                            else -> {
-                                android.util.Log.w("ApiService", "Course ID is unknown type: ${courseIdValue?.javaClass?.simpleName}")
-                                return@forEachIndexed
-                            }
-                        }
-                        
-                        val courseName = course["name"] as? String
-                        if (courseName.isNullOrBlank()) {
-                            android.util.Log.w("ApiService", "Course $index has no name")
-                            return@forEachIndexed
-                        }
-                        
-                        val courseCode = course["code"] as? String
-                        
-                        android.util.Log.d("ApiService", "Course: id=$courseId, name=$courseName, code=$courseCode")
-                        result.add(StudentCourseWithWeeks(
-                            courseId = courseId,
-                            courseName = courseName,
-                            courseCode = courseCode,
-                            weeks = emptyList() // Haftaları daha sonra toplu olarak dolduracağız
-                        ))
-                    }
-                } else {
-                    // Normal flow: parse course_class_assignments
-                    val assignmentsData = moshi.adapter(List::class.java).fromJson(assignmentsBody) as? List<Map<String, Any>>
-                    val courseIdsFromAssignments = assignmentsData?.mapNotNull { 
-                        val courseId = it["course_id"]
-                        when (courseId) {
-                            is Number -> courseId.toLong()
-                            is String -> courseId.toLongOrNull() // Try to parse UUID as Long (might fail)
-                            else -> null
-                        }
-                    }?.distinct() ?: emptyList()
-                    
-                    android.util.Log.d("ApiService", "Found ${courseIdsFromAssignments.size} unique course IDs from assignments")
-                    
-                    if (courseIdsFromAssignments.isEmpty()) {
-                        android.util.Log.e("ApiService", "No course IDs found in assignments")
-                        return emptyList()
-                    }
-                    
-                    // Get course details using course IDs
-                    val courseIdsStr = courseIdsFromAssignments.joinToString(",")
-                    val coursesUrl = "$restBaseUrl/courses?select=id,name,code&id=in.($courseIdsStr)"
-                    android.util.Log.d("ApiService", "Step 4c: Getting course details: $coursesUrl")
-                    
-                    val coursesRequest = Request.Builder()
-                        .url(coursesUrl)
-                        .get()
-                        .addHeader("apikey", anonKey)
-                        .addHeader("Authorization", "Bearer $anonKey")
-                        .addHeader("Content-Type", "application/json")
-                        .build()
-                    
-                    val coursesResponse = withContext(Dispatchers.IO) {
-                        client.newCall(coursesRequest).execute()
-                    }
-                    val coursesBody = coursesResponse.body?.string()
-                    
-                    android.util.Log.d("ApiService", "Courses response code: ${coursesResponse.code}")
-                    android.util.Log.d("ApiService", "Courses response body: $coursesBody")
-                    
-                    if (!coursesResponse.isSuccessful || coursesBody.isNullOrEmpty() || coursesBody == "[]") {
-                        android.util.Log.e("ApiService", "Courses request failed: ${coursesResponse.code} - $coursesBody")
-                        return emptyList()
-                    }
-                    
-                    // Parse courses
-                    val coursesData = moshi.adapter(List::class.java).fromJson(coursesBody) as? List<Map<String, Any>>
-                    android.util.Log.d("ApiService", "Parsed ${coursesData?.size ?: 0} course assignments")
-                    
-                    coursesData?.forEachIndexed { index, course ->
-                        android.util.Log.d("ApiService", "Processing course $index: $course")
-                        
-                        // courses.id BIGINT veya UUID olabilir
-                        val courseIdValue = course["id"]
-                        val courseId = when (courseIdValue) {
-                            is Number -> courseIdValue.toLong()
-                            is String -> {
-                                // UUID string ise, Long'a çeviremeyiz, atla
-                                android.util.Log.w("ApiService", "Course ID is UUID string, skipping: $courseIdValue")
-                                return@forEachIndexed
-                            }
-                            else -> {
-                                android.util.Log.w("ApiService", "Course ID is unknown type: ${courseIdValue?.javaClass?.simpleName}")
-                                return@forEachIndexed
-                            }
-                        }
-                        
-                        val courseName = course["name"] as? String
-                        if (courseName.isNullOrBlank()) {
-                            android.util.Log.w("ApiService", "Course $index has no name")
-                            return@forEachIndexed
-                        }
-                        
-                        val courseCode = course["code"] as? String
-                        
-                        android.util.Log.d("ApiService", "Course: id=$courseId, name=$courseName, code=$courseCode")
-                        result.add(StudentCourseWithWeeks(
-                            courseId = courseId,
-                            courseName = courseName,
-                            courseCode = courseCode,
-                            weeks = emptyList() // Haftaları daha sonra toplu olarak dolduracağız
-                        ))
-                    }
-                }
-                }
+                android.util.Log.w("ApiService", "No courses found for class_id: $classId, academic_year: $classAcademicYear, semester: $currentSemester")
+                // Fallback kaldırıldı - sadece course_class_assignments'ten gelen dersleri gösteriyoruz
+                // Bu sayede öğrenci sadece kendi sınıfına atanmış dersleri görür
             }
             
             // Tüm derslerin ID'lerini topla
