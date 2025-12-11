@@ -86,3 +86,5 @@ ORDER BY ordinal_position;
 SELECT COUNT(*) AS total_assignments FROM public.course_class_assignments;
 
 
+
+

@@ -90,10 +90,10 @@ class SupabaseService {
         }
     }
     
-    suspend fun getAttendanceForWeek(courseId: Long, weekNumber: Int): List<AttendanceRecord>? {
+    suspend fun getAttendanceForWeek(courseId: String, weekNumber: Int): List<AttendanceRecord>? {
         return try {
             val httpRequest = Request.Builder()
-                .url("$supabaseUrl/rest/v1/attendances?course_id=eq.$courseId&week_number=eq.$weekNumber&select=student_id,marked_at,method,profiles!attendances_student_id_fkey(full_name)&order=marked_at.asc")
+                .url("$supabaseUrl/rest/v1/attendances?course_id=eq.$courseId&week_number=eq.$weekNumber&select=student_id,marked_at,method,profiles!attendances_student_id_fkey(full_name,email)&order=marked_at.asc")
                 .get()
                 .addHeader("apikey", anonKey)
                 .addHeader("Authorization", "Bearer $anonKey")
@@ -109,26 +109,157 @@ class SupabaseService {
             
             if (response.isSuccessful) {
                 val attendances = moshi.adapter(List::class.java).fromJson(responseBody)
-                attendances?.map { attendanceMap ->
-                    val map = attendanceMap as Map<String, Any>
-                    val profilesMap = map["profiles"] as? Map<String, Any>
-                    val studentProfile = profilesMap?.let { 
-                        StudentProfile(fullName = it["full_name"] as String)
+                val result = attendances?.mapNotNull { attendanceMap ->
+                    try {
+                        val map = attendanceMap as Map<String, Any>
+                        val studentIdRaw = map["student_id"]
+                        val studentId = when (studentIdRaw) {
+                            is String -> studentIdRaw
+                            is Number -> studentIdRaw.toString()
+                            else -> studentIdRaw?.toString() ?: ""
+                        }
+                        val profilesMap = map["profiles"] as? Map<String, Any>
+                        val studentProfile = profilesMap?.let { 
+                            StudentProfile(
+                                fullName = it["full_name"] as? String ?: "",
+                                email = it["email"] as? String
+                            )
+                        }
+                        android.util.Log.d("SupabaseService", "Parsed attendance: $studentId - ${studentProfile?.fullName}")
+                        AttendanceRecord(
+                            studentId = studentId,
+                            markedAt = map["marked_at"] as? String ?: "",
+                            method = map["method"] as? String ?: "",
+                            profiles = studentProfile,
+                            hasAttendance = true
+                        )
+                    } catch (e: Exception) {
+                        android.util.Log.e("SupabaseService", "Error parsing attendance: ${e.message}", e)
+                        null
                     }
-                    AttendanceRecord(
-                        studentId = map["student_id"] as String,
-                        markedAt = map["marked_at"] as String,
-                        method = map["method"] as String,
-                        profiles = studentProfile
-                    )
-                }
+                } ?: emptyList()
+                android.util.Log.d("SupabaseService", "Returning ${result.size} attendance records")
+                return result
             } else {
                 android.util.Log.e("SupabaseService", "GetAttendance HTTP Error: ${response.code} - $responseBody")
-                null
+                return null
             }
         } catch (e: Exception) {
             android.util.Log.e("SupabaseService", "Exception in getAttendanceForWeek: ${e.message}", e)
             null
         }
     }
+    
+    // Derse atanmış sınıflardaki tüm öğrencileri getir
+    suspend fun getAllStudentsForCourse(courseId: String): List<StudentRecord>? {
+        return try {
+            // 1. Önce course_class_assignments'den class_id'leri al
+            val assignmentsUrl = "$supabaseUrl/rest/v1/course_class_assignments?course_id=eq.$courseId&select=class_id"
+            val assignmentsRequest = Request.Builder()
+                .url(assignmentsUrl)
+                .get()
+                .addHeader("apikey", anonKey)
+                .addHeader("Authorization", "Bearer $anonKey")
+                .addHeader("Content-Type", "application/json")
+                .build()
+            
+            val assignmentsResponse = withContext(Dispatchers.IO) {
+                client.newCall(assignmentsRequest).execute()
+            }
+            val assignmentsBody = assignmentsResponse.body?.string()
+            android.util.Log.d("SupabaseService", "GetAllStudents - Assignments Response Code: ${assignmentsResponse.code}")
+            android.util.Log.d("SupabaseService", "GetAllStudents - Assignments Response Body: $assignmentsBody")
+            
+            if (!assignmentsResponse.isSuccessful || assignmentsBody.isNullOrEmpty() || assignmentsBody == "[]") {
+                android.util.Log.w("SupabaseService", "No class assignments found for course $courseId")
+                return emptyList()
+            }
+            
+            val assignments = moshi.adapter(List::class.java).fromJson(assignmentsBody) as? List<Map<String, Any>>
+            val classIds = assignments?.mapNotNull { item ->
+                val v = item["class_id"]
+                when (v) {
+                    is String -> v
+                    is Number -> v.toString()
+                    else -> v?.toString()
+                }
+            }?.filter { it.isNotBlank() }?.distinct() ?: emptyList()
+            
+            if (classIds.isEmpty()) {
+                android.util.Log.w("SupabaseService", "No class IDs found for course $courseId")
+                return emptyList()
+            }
+            
+            android.util.Log.d("SupabaseService", "Found ${classIds.size} classes for course $courseId: $classIds")
+            
+            // 2. O sınıflardaki tüm öğrencileri al
+            // Supabase REST API'de IN operatörü için virgülle ayrılmış değerler kullanıyoruz
+            val classIdsParam = classIds.joinToString(",")
+            val studentsUrl = "$supabaseUrl/rest/v1/students?class_id=in.($classIdsParam)&select=id,email,full_name&order=full_name.asc"
+            
+            val studentsRequest = Request.Builder()
+                .url(studentsUrl)
+                .get()
+                .addHeader("apikey", anonKey)
+                .addHeader("Authorization", "Bearer $anonKey")
+                .addHeader("Content-Type", "application/json")
+                .build()
+            
+            val studentsResponse = withContext(Dispatchers.IO) {
+                client.newCall(studentsRequest).execute()
+            }
+            val studentsBody = studentsResponse.body?.string()
+            android.util.Log.d("SupabaseService", "GetAllStudents - Students Response Code: ${studentsResponse.code}")
+            android.util.Log.d("SupabaseService", "GetAllStudents - Students Response Body: $studentsBody")
+            
+            if (studentsResponse.isSuccessful && !studentsBody.isNullOrEmpty() && studentsBody != "[]") {
+                val students = moshi.adapter(List::class.java).fromJson(studentsBody) as? List<Map<String, Any>>
+                val result = students?.mapNotNull { studentMap ->
+                    try {
+                        val id = studentMap["id"]
+                        val studentId = when (id) {
+                            is String -> id
+                            is Number -> id.toString()
+                            else -> null
+                        }
+                        if (studentId == null) {
+                            android.util.Log.w("SupabaseService", "Invalid student ID: $id")
+                            return@mapNotNull null
+                        }
+                        val fullName = studentMap["full_name"] as? String ?: ""
+                        val email = studentMap["email"] as? String ?: ""
+                        android.util.Log.d("SupabaseService", "Parsed student: $studentId - $fullName")
+                        StudentRecord(
+                            studentId = studentId,
+                            email = email,
+                            profiles = StudentProfile(fullName = fullName, email = email),
+                            fullName = fullName
+                        )
+                    } catch (e: Exception) {
+                        android.util.Log.e("SupabaseService", "Error parsing student: ${e.message}", e)
+                        null
+                    }
+                } ?: emptyList()
+                android.util.Log.d("SupabaseService", "Returning ${result.size} students")
+                return result
+            } else {
+                android.util.Log.e("SupabaseService", "GetAllStudents - Students HTTP Error: ${studentsResponse.code} - $studentsBody")
+                return emptyList()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("SupabaseService", "Exception in getAllStudentsForCourse: ${e.message}", e)
+            null
+        }
+    }
 }
+
+// Derse kayıtlı öğrenci kaydı
+data class StudentRecord(
+    val studentId: String,
+    val email: String,
+    val profiles: StudentProfile?,
+    val fullName: String = profiles?.fullName ?: "",
+    val hasAttendance: Boolean = false,
+    val attendanceTime: String? = null,
+    val method: String? = null
+)

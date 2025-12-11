@@ -22,7 +22,9 @@ class AttendanceListActivity : AppCompatActivity() {
     
     private var selectedCourse: Course? = null
     private var weeksWithQR: List<WeekWithQR> = emptyList()
-    private var currentAttendance: List<AttendanceRecord> = emptyList()
+    private var currentAttendance: List<StudentRecord> = emptyList()
+    private var totalStudents: Int = 0
+    private var attendedStudents: Int = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -187,40 +189,134 @@ class AttendanceListActivity : AppCompatActivity() {
                     return@launch
                 }
                 
-                val courseIdLong = try {
-                    course.uuid!!.toLong()
-                } catch (e: NumberFormatException) {
-                    android.util.Log.e("AttendanceListActivity", "Invalid courseId format: ${course.uuid}")
+                val courseId = course.uuid ?: ""
+                if (courseId.isBlank()) {
+                    android.util.Log.e("AttendanceListActivity", "Missing courseId for selected course")
                     runOnUiThread {
                         binding.progressBar.visibility = android.view.View.GONE
-                        Toast.makeText(this@AttendanceListActivity, "Ders ID geçersiz", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@AttendanceListActivity, "Ders ID bulunamadı", Toast.LENGTH_SHORT).show()
                     }
                     return@launch
                 }
                 
-                val attendance = supabaseService.getAttendanceForWeek(courseIdLong, week.week_number)
+                // 1. Tüm öğrencileri çek (derse kayıtlı)
+                val allStudents = supabaseService.getAllStudentsForCourse(courseId) ?: emptyList()
+                android.util.Log.d("AttendanceListActivity", "Found ${allStudents.size} students enrolled in course")
+                allStudents.forEach { student ->
+                    android.util.Log.d("AttendanceListActivity", "Student: ${student.studentId} - ${student.profiles?.fullName}")
+                }
+                
+                // 2. Yoklama kayıtlarını çek
+                val attendanceRecords = supabaseService.getAttendanceForWeek(courseId, week.week_number) ?: emptyList()
+                android.util.Log.d("AttendanceListActivity", "Found ${attendanceRecords.size} attendance records")
+                attendanceRecords.forEach { record ->
+                    android.util.Log.d("AttendanceListActivity", "Attendance: ${record.studentId} - ${record.profiles?.fullName}")
+                }
+                
+                // 3. Öğrencileri ve yoklama kayıtlarını birleştir
+                // studentId'leri normalize et (String'e çevir, trim, lowercase) karşılaştırma için
+                fun normalizeId(id: String): String {
+                    return id.trim().lowercase().replace("-", "").replace("_", "")
+                }
+                
+                // Aynı öğrencinin birden fazla yoklama kaydını önlemek için ilk kaydı al
+                val attendanceMapById = mutableMapOf<String, AttendanceRecord>()
+                val attendanceMapByEmail = mutableMapOf<String, AttendanceRecord>()
+                attendanceRecords.forEach { rec ->
+                    val key = normalizeId(rec.studentId)
+                    if (!attendanceMapById.containsKey(key)) {
+                        attendanceMapById[key] = rec
+                    } else {
+                        android.util.Log.w("AttendanceListActivity", "Duplicate attendance for studentId=$key, ignoring extra record")
+                    }
+                    val emailKey = rec.profiles?.email?.trim()?.lowercase()
+                    if (!emailKey.isNullOrBlank() && !attendanceMapByEmail.containsKey(emailKey)) {
+                        attendanceMapByEmail[emailKey] = rec
+                    }
+                }
+                android.util.Log.d("AttendanceListActivity", "Attendance map size (id): ${attendanceMapById.size}, (email): ${attendanceMapByEmail.size}")
+                
+                // Her öğrenci için tek satır üret (katıldı/katılmadı)
+                val combinedAttendance = allStudents.map { student ->
+                    val normalizedId = normalizeId(student.studentId)
+                    val attendance = student.email.trim().lowercase().let { attendanceMapByEmail[it] }
+                        ?: attendanceMapById[normalizedId]
+                    val record = if (attendance != null) {
+                        StudentRecord(
+                            studentId = student.studentId, // Öğrenci listesindeki student_id'yi kullan
+                            email = student.email,
+                            profiles = attendance.profiles ?: student.profiles,
+                            fullName = attendance.profiles?.fullName ?: student.profiles?.fullName ?: "",
+                            hasAttendance = true,
+                            attendanceTime = attendance.markedAt,
+                            method = attendance.method
+                        )
+                    } else {
+                        StudentRecord(
+                            studentId = student.studentId,
+                            email = student.email,
+                            profiles = student.profiles,
+                            fullName = student.profiles?.fullName ?: "",
+                            hasAttendance = false,
+                            attendanceTime = null,
+                            method = null
+                        )
+                    }
+                    android.util.Log.d("AttendanceListActivity", "Combined row: ${record.studentId} - ${record.fullName} - hasAttendance=${record.hasAttendance}")
+                    record
+                }.sortedBy { it.fullName }
+                
+                android.util.Log.d("AttendanceListActivity", "All students count: ${allStudents.size}")
+                android.util.Log.d("AttendanceListActivity", "Attendance records count: ${attendanceRecords.size}")
+                android.util.Log.d("AttendanceListActivity", "Combined attendance count: ${combinedAttendance.size}")
+                
+                // İstatistikleri hesapla
+                totalStudents = combinedAttendance.size
+                attendedStudents = combinedAttendance.count { it.hasAttendance }
                 
                 runOnUiThread {
                     binding.progressBar.visibility = android.view.View.GONE
                     
-                    if (attendance.isNullOrEmpty()) {
-                        Toast.makeText(this@AttendanceListActivity, "Bu hafta için yoklama verisi bulunamadı", Toast.LENGTH_SHORT).show()
+                    if (allStudents.isEmpty()) {
+                        Toast.makeText(this@AttendanceListActivity, "Bu derse kayıtlı öğrenci bulunamadı", Toast.LENGTH_SHORT).show()
                         binding.layoutAttendance.visibility = android.view.View.GONE
                     } else {
-                        currentAttendance = attendance
-                        attendanceAdapter.updateAttendance(attendance)
+                        currentAttendance = combinedAttendance
+                        android.util.Log.d("AttendanceListActivity", "Passing to adapter size=${combinedAttendance.size}")
+                        android.util.Log.d("AttendanceListActivity", "RecyclerView visibility before: ${binding.recyclerViewAttendance.visibility}")
+                        android.util.Log.d("AttendanceListActivity", "Layout attendance visibility before: ${binding.layoutAttendance.visibility}")
+                        attendanceAdapter.updateAttendance(combinedAttendance)
                         binding.layoutAttendance.visibility = android.view.View.VISIBLE
+                        binding.recyclerViewAttendance.visibility = android.view.View.VISIBLE
+                        android.util.Log.d("AttendanceListActivity", "RecyclerView visibility after: ${binding.recyclerViewAttendance.visibility}")
+                        android.util.Log.d("AttendanceListActivity", "Layout attendance visibility after: ${binding.layoutAttendance.visibility}")
+                        android.util.Log.d("AttendanceListActivity", "RecyclerView adapter itemCount: ${attendanceAdapter.itemCount}")
                         binding.btnExportReport.visibility = android.view.View.VISIBLE
                         binding.tvWeekTitle.text = "Hafta ${week.week_number} - ${week.created_at.substring(0, 10)}"
+                        
+                        // İstatistikleri güncelle
+                        updateAttendanceStatistics()
                     }
                 }
             } catch (e: Exception) {
+                android.util.Log.e("AttendanceListActivity", "Error loading attendance: ${e.message}", e)
                 runOnUiThread {
                     binding.progressBar.visibility = android.view.View.GONE
                     Toast.makeText(this@AttendanceListActivity, "Hata: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         }
+    }
+    
+    private fun updateAttendanceStatistics() {
+        val notAttended = totalStudents - attendedStudents
+        val attendanceRate = if (totalStudents > 0) {
+            (attendedStudents * 100.0 / totalStudents).toInt()
+        } else {
+            0
+        }
+        
+        binding.tvAttendanceStats.text = "Toplam: $totalStudents | Katılan: $attendedStudents | Katılmayan: $notAttended | Oran: %$attendanceRate"
     }
     
     private fun exportAttendanceReport() {
@@ -237,9 +333,9 @@ class AttendanceListActivity : AppCompatActivity() {
             
             // CSV Data
             currentAttendance.forEach { attendance ->
-                val studentName = attendance.profiles?.fullName ?: "Bilinmeyen"
-                val markedTime = attendance.markedAt
-                val method = attendance.method
+                val studentName = attendance.fullName.ifBlank { attendance.profiles?.fullName ?: "Bilinmeyen" }
+                val markedTime = attendance.attendanceTime ?: ""
+                val method = attendance.method ?: if (attendance.hasAttendance) "qr" else ""
                 
                 csvContent.append("\"$studentName\",\"${attendance.studentId}\",\"$markedTime\",\"$method\"\n")
             }

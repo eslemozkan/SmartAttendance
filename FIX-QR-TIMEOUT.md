@@ -86,3 +86,5 @@ ORDER BY ordinal_position;
 - Environment variables mutlaka ayarlanmalı
 
 
+
+

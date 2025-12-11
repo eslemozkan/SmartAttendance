@@ -28,6 +28,7 @@ color teal_700
 color text_primary
 color text_secondary
 color white
+drawable badge_error
 drawable badge_primary
 drawable badge_success
 drawable bg_student_course_card
@@ -70,6 +71,7 @@ id etStudentEmail
 id etStudentPassword
 id etTeacherEmail
 id etTeacherPassword
+id icon_person
 id ivQRCode
 id layoutStudentLogin
 id layoutTeacherLogin
@@ -109,7 +111,10 @@ id tvTeacherSignupLink
 id tvTitle
 id tvTotalWeeks
 id tvWelcome
+id tv_attendance_stats
 id tv_attendance_time
+id tv_status_badge
+id tv_student_email
 id tv_student_name
 id tv_week_date
 id tv_week_number

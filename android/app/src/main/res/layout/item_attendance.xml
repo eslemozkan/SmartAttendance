@@ -8,6 +8,7 @@
     android:gravity="center_vertical">
 
     <ImageView
+        android:id="@+id/icon_person"
         android:layout_width="24dp"
         android:layout_height="24dp"
         android:src="@drawable/ic_person"
@@ -30,6 +31,15 @@
             android:textColor="@color/academic_text_primary" />
 
         <TextView
+            android:id="@+id/tv_student_email"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="email@example.com"
+            android:textSize="13sp"
+            android:textColor="@color/academic_text_secondary"
+            android:layout_marginTop="2dp" />
+
+        <TextView
             android:id="@+id/tv_attendance_time"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -41,6 +51,7 @@
     </LinearLayout>
 
     <TextView
+        android:id="@+id/tv_status_badge"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="VAR"

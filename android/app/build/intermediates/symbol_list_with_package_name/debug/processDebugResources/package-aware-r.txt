@@ -3052,6 +3052,7 @@ drawable abc_textfield_search_material
 drawable abc_vector_test
 drawable avd_hide_password
 drawable avd_show_password
+drawable badge_error
 drawable badge_primary
 drawable badge_success
 drawable bg_student_course_card
@@ -3447,6 +3448,7 @@ id horizontal_only
 id icon
 id icon_group
 id icon_only
+id icon_person
 id ifRoom
 id ignore
 id ignoreRequest
@@ -3748,7 +3750,10 @@ id tvTeacherSignupLink
 id tvTitle
 id tvTotalWeeks
 id tvWelcome
+id tv_attendance_stats
 id tv_attendance_time
+id tv_status_badge
+id tv_student_email
 id tv_student_name
 id tv_week_date
 id tv_week_number

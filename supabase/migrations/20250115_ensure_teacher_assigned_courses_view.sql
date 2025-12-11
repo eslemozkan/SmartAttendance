@@ -35,3 +35,5 @@ GRANT SELECT ON public.profiles TO anon, authenticated;
 NOTIFY pgrst, 'reload schema';
 
 
+
+

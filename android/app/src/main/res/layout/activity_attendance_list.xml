@@ -142,11 +142,23 @@
                     android:textColor="@color/academic_text_primary"
                     android:layout_marginBottom="8dp" />
 
+                <TextView
+                    android:id="@+id/tv_attendance_stats"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Toplam: 0 | Katılan: 0 | Katılmayan: 0 | Oran: %0"
+                    android:textSize="14sp"
+                    android:textColor="@color/academic_text_secondary"
+                    android:background="@drawable/card_academic"
+                    android:padding="12dp"
+                    android:layout_marginBottom="12dp" />
+
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/recycler_view_attendance"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:nestedScrollingEnabled="false" />
+                    android:layout_height="400dp"
+                    android:nestedScrollingEnabled="true"
+                    android:minHeight="200dp" />
 
                 <!-- Export Button -->
                 <Button

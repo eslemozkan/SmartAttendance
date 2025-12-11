@@ -50,3 +50,5 @@ GRANT SELECT ON public.student_courses_by_class TO anon, authenticated;
 NOTIFY pgrst, 'reload schema';
 
 
+
+

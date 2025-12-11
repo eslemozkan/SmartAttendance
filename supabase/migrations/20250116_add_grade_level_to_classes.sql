@@ -16,3 +16,5 @@ CREATE INDEX IF NOT EXISTS idx_classes_grade_level ON public.classes(grade_level
 -- 4. Add comment
 COMMENT ON COLUMN public.classes.grade_level IS 'Sınıf seviyesi (1, 2, 3, 4) - 1. sınıf, 2. sınıf gibi';
 
+
+

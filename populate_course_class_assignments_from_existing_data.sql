@@ -129,3 +129,5 @@ WHERE s.email = 'student@example.com'  -- Replace with actual email
 GROUP BY s.id, s.email, s.full_name, cl.name;
 
 
+
+

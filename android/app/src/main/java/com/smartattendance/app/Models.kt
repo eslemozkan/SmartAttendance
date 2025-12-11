@@ -17,14 +17,16 @@ data class Week(
 )
 
 data class StudentProfile(
-    val fullName: String
+    val fullName: String,
+    val email: String? = null
 )
 
 data class AttendanceRecord(
     val studentId: String,
     val markedAt: String,
     val method: String,
-    val profiles: StudentProfile?
+    val profiles: StudentProfile?,
+    val hasAttendance: Boolean = true // Yoklamaya katıldı mı?
 ) {
     // Legacy constructor for backward compatibility
     constructor(
@@ -36,7 +38,8 @@ data class AttendanceRecord(
         studentId = student_id,
         markedAt = marked_at,
         method = method,
-        profiles = StudentProfile(fullName = student_name)
+        profiles = StudentProfile(fullName = student_name),
+        hasAttendance = true
     )
 }
 

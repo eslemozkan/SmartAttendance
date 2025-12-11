@@ -104,3 +104,5 @@ WHERE schemaname = 'public'
   AND tablename = 'qr_codes';
 
 
+
+
