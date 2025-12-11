@@ -171,9 +171,40 @@ class StudentActivity : AppCompatActivity() {
         
         lifecycleScope.launch {
             try {
+                // Öğrencinin konumunu al
+                var studentLatitude: Double? = null
+                var studentLongitude: Double? = null
+                
+                if (LocationHelper.hasLocationPermission(this@StudentActivity)) {
+                    if (LocationHelper.isLocationEnabled(this@StudentActivity)) {
+                        android.util.Log.d("StudentActivity", "Getting student location...")
+                        val location = LocationHelper.getCurrentLocation(this@StudentActivity)
+                        if (location != null) {
+                            studentLatitude = location.latitude
+                            studentLongitude = location.longitude
+                            android.util.Log.d("StudentActivity", "Student location: lat=$studentLatitude, lon=$studentLongitude")
+                        } else {
+                            android.util.Log.w("StudentActivity", "Could not get student location")
+                            runOnUiThread {
+                                Toast.makeText(this@StudentActivity, "Konum alınamadı. Yoklama alınamayabilir.", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    } else {
+                        android.util.Log.w("StudentActivity", "Location services disabled")
+                        runOnUiThread {
+                            Toast.makeText(this@StudentActivity, "Konum servisleri kapalı. Lütfen açın.", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                } else {
+                    android.util.Log.w("StudentActivity", "Location permission not granted")
+                    runOnUiThread {
+                        Toast.makeText(this@StudentActivity, "Konum izni verilmedi. Yoklama alınamayabilir.", Toast.LENGTH_LONG).show()
+                    }
+                }
+                
                 // Girişte gelen email'i kullan (server email'den profile id çözer)
                 val email = intent.getStringExtra("email") ?: ""
-                val ok = apiService.validateQRCode(qrData, email) == true
+                val ok = apiService.validateQRCode(qrData, email, studentLatitude, studentLongitude) == true
 
                 runOnUiThread {
                     if (ok) {
@@ -183,8 +214,8 @@ class StudentActivity : AppCompatActivity() {
                         binding.btnStartScan.text = "Yoklama Alındı"
                         Toast.makeText(this@StudentActivity, "Yoklama başarıyla alındı!", Toast.LENGTH_LONG).show()
                     } else {
-                        binding.tvStatus.text = "QR kod geçersiz veya süresi dolmuş"
-                        Toast.makeText(this@StudentActivity, "QR kod geçersiz", Toast.LENGTH_SHORT).show()
+                        binding.tvStatus.text = "QR kod geçersiz, süresi dolmuş veya konum uygun değil"
+                        Toast.makeText(this@StudentActivity, "QR kod geçersiz veya konum kontrolü başarısız", Toast.LENGTH_SHORT).show()
                     }
                 }
             } catch (e: Exception) {

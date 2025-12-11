@@ -17,7 +17,9 @@ import java.util.concurrent.TimeUnit
 data class CreateQRRequest(
     @Json(name = "course_id") val courseId: Long, // BIGINT number (courses.id is BIGINT)
     @Json(name = "week_number") val weekNumber: Int,
-    @Json(name = "expire_after_minutes") val expireAfterMinutes: Int
+    @Json(name = "expire_after_minutes") val expireAfterMinutes: Int,
+    @Json(name = "teacher_latitude") val teacherLatitude: Double? = null,
+    @Json(name = "teacher_longitude") val teacherLongitude: Double? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -31,7 +33,9 @@ data class QRData(
     @Json(name = "course_id") val courseId: Long, // BIGINT number
     @Json(name = "week_number") val weekNumber: Int,
     @Json(name = "created_at") val createdAt: String,
-    @Json(name = "expire_after") val expireAfter: Int
+    @Json(name = "expire_after") val expireAfter: Int,
+    @Json(name = "teacher_latitude") val teacherLatitude: Double? = null,
+    @Json(name = "teacher_longitude") val teacherLongitude: Double? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -41,7 +45,9 @@ data class ValidateQRRequest(
     @Json(name = "created_at") val createdAt: String,
     @Json(name = "expire_after") val expireAfter: Int,
     @Json(name = "student_id") val studentId: String,
-    @Json(name = "student_email") val studentEmail: String? = null
+    @Json(name = "student_email") val studentEmail: String? = null,
+    @Json(name = "student_latitude") val studentLatitude: Double? = null,
+    @Json(name = "student_longitude") val studentLongitude: Double? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -368,9 +374,9 @@ class ApiService {
         }
     }
     
-    suspend fun createQRCode(courseId: Long, weekNumber: Int, expireAfterMinutes: Int): CreateQRResponse? {
+    suspend fun createQRCode(courseId: Long, weekNumber: Int, expireAfterMinutes: Int, teacherLatitude: Double? = null, teacherLongitude: Double? = null): CreateQRResponse? {
         return try {
-            val request = CreateQRRequest(courseId, weekNumber, expireAfterMinutes)
+            val request = CreateQRRequest(courseId, weekNumber, expireAfterMinutes, teacherLatitude, teacherLongitude)
             val json = moshi.adapter(CreateQRRequest::class.java).toJson(request)
             val url = "$functionsBaseUrl/create-qr"
             
@@ -419,14 +425,37 @@ class ApiService {
         }
     }
     
-    suspend fun validateQRCode(qrDataString: String, studentEmail: String): Boolean? {
+    suspend fun validateQRCode(qrDataString: String, studentEmail: String, studentLatitude: Double? = null, studentLongitude: Double? = null): Boolean? {
         return try {
             android.util.Log.d("ApiService", "QR Data String: $qrDataString")
             android.util.Log.d("ApiService", "Student Email: $studentEmail")
+            android.util.Log.d("ApiService", "Student Location: lat=$studentLatitude, lon=$studentLongitude")
             
             // Parse QR data string (assuming it's JSON)
             val qrData = moshi.adapter(QRData::class.java).fromJson(qrDataString)
             android.util.Log.d("ApiService", "Parsed QR Data: $qrData")
+            
+            // Konum kontrolü: Eğer hem hocanın hem öğrencinin konumu varsa, mesafe kontrolü yap
+            if (qrData != null && qrData.teacherLatitude != null && qrData.teacherLongitude != null 
+                && studentLatitude != null && studentLongitude != null) {
+                val distance = LocationHelper.calculateDistance(
+                    qrData.teacherLatitude,
+                    qrData.teacherLongitude,
+                    studentLatitude,
+                    studentLongitude
+                )
+                android.util.Log.d("ApiService", "Distance from teacher: ${distance}m")
+                
+                // Mesafe threshold: 30 metre (sınıf/bina içi için uygun)
+                val maxDistance = 30.0 // metre
+                if (distance > maxDistance) {
+                    android.util.Log.w("ApiService", "Student too far from teacher: ${distance}m > ${maxDistance}m")
+                    return false
+                }
+                android.util.Log.d("ApiService", "Location check passed: ${distance}m <= ${maxDistance}m")
+            } else {
+                android.util.Log.w("ApiService", "Location check skipped: teacher location=${qrData?.teacherLatitude != null && qrData?.teacherLongitude != null}, student location=${studentLatitude != null && studentLongitude != null}")
+            }
             
             if (qrData != null) {
                 val request = ValidateQRRequest(
@@ -435,7 +464,9 @@ class ApiService {
                     createdAt = qrData.createdAt,
                     expireAfter = qrData.expireAfter,
                     studentId = "",
-                    studentEmail = studentEmail
+                    studentEmail = studentEmail,
+                    studentLatitude = studentLatitude,
+                    studentLongitude = studentLongitude
                 )
                 
                 val json = moshi.adapter(ValidateQRRequest::class.java).toJson(request)

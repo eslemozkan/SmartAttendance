@@ -1,9 +1,11 @@
 package com.smartattendance.app
 
 import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.smartattendance.app.databinding.ActivityLoginBinding
@@ -12,12 +14,21 @@ import kotlinx.coroutines.launch
 class LoginActivity : AppCompatActivity() {
     private lateinit var binding: ActivityLoginBinding
     private val api = ApiService()
+    private lateinit var sharedPrefs: SharedPreferences
+    
+    companion object {
+        private const val PREFS_NAME = "SmartAttendancePrefs"
+        private const val KEY_LAST_USER_EMAIL = "last_user_email"
+        private const val KEY_LAST_USER_TYPE = "last_user_type"
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         binding = ActivityLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        
+        sharedPrefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
 
         setupUI()
     }
@@ -96,10 +107,42 @@ class LoginActivity : AppCompatActivity() {
         binding.btnStudentLogin.isEnabled = false
         Toast.makeText(this, "Giriş yapılıyor...", Toast.LENGTH_SHORT).show()
         
+        // Tek cihaz kontrolü: Sadece öğrenci hesapları için kontrol yap (öğretmen hesapları sayılmaz)
+        val lastUserEmail = sharedPrefs.getString(KEY_LAST_USER_EMAIL, null)
+        val lastUserType = sharedPrefs.getString(KEY_LAST_USER_TYPE, null)
+        
+        // Sadece öğrenci hesabı varsa kontrol yap, öğretmen hesabı varsa görmezden gel
+        if (lastUserEmail != null && lastUserEmail != email && lastUserType == "student") {
+            // Farklı bir öğrenci hesabı giriş yapıyor, önceki session'ı temizle
+            android.util.Log.d("LoginActivity", "Different student login detected: $lastUserEmail -> $email")
+            AlertDialog.Builder(this)
+                .setTitle("Farklı Öğrenci Hesabı")
+                .setMessage("Bu cihazda başka bir öğrenci hesabı ($lastUserEmail) açık. Yeni hesap ile giriş yapmak için önceki oturum kapatılacak. Devam etmek istiyor musunuz?")
+                .setPositiveButton("Evet") { _, _ ->
+                    proceedWithStudentLogin(email, password)
+                }
+                .setNegativeButton("İptal") { _, _ ->
+                    binding.btnStudentLogin.isEnabled = true
+                }
+                .setCancelable(false)
+                .show()
+            return
+        }
+        
+        proceedWithStudentLogin(email, password)
+    }
+    
+    private fun proceedWithStudentLogin(email: String, password: String) {
         lifecycleScope.launch {
             try {
                 // Allow dummy admin/admin for homework convenience
                 if (email == "admin" && password == "admin") {
+                    // Session bilgisini kaydet
+                    sharedPrefs.edit()
+                        .putString(KEY_LAST_USER_EMAIL, email)
+                        .putString(KEY_LAST_USER_TYPE, "student")
+                        .apply()
+                    
                     val intent = Intent(this@LoginActivity, StudentActivity::class.java)
                     intent.putExtra("user_type", "student")
                     intent.putExtra("email", email)
@@ -111,6 +154,12 @@ class LoginActivity : AppCompatActivity() {
                 val success = api.studentLogin(email, password)
                 
                 if (success) {
+                    // Session bilgisini kaydet
+                    sharedPrefs.edit()
+                        .putString(KEY_LAST_USER_EMAIL, email)
+                        .putString(KEY_LAST_USER_TYPE, "student")
+                        .apply()
+                    
                     val intent = Intent(this@LoginActivity, StudentActivity::class.java)
                     intent.putExtra("user_type", "student")
                     intent.putExtra("email", email)
@@ -128,12 +177,24 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun performTeacherLogin(email: String, password: String) {
+        // Öğretmen hesapları için tek cihaz kontrolü yok - direkt giriş yap
+        proceedWithTeacherLogin(email, password)
+    }
+    
+    private fun proceedWithTeacherLogin(email: String, password: String) {
         // Allow dummy admin/admin or simple validation
         if ((email == "admin" && password == "admin") || (email.contains("@") && password.isNotEmpty())) {
+            // Session bilgisini kaydet
+            sharedPrefs.edit()
+                .putString(KEY_LAST_USER_EMAIL, email)
+                .putString(KEY_LAST_USER_TYPE, "teacher")
+                .apply()
+            
             val intent = Intent(this, TeacherActivity::class.java)
             intent.putExtra("user_type", "teacher")
             intent.putExtra("email", email)
             startActivity(intent)
+            finish()
         } else {
             Toast.makeText(this, "Geçersiz öğretmen bilgileri", Toast.LENGTH_SHORT).show()
         }

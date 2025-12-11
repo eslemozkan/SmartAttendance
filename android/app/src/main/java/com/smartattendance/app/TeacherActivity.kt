@@ -3,9 +3,12 @@ package com.smartattendance.app
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.os.Bundle
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
@@ -59,6 +62,39 @@ class TeacherActivity : AppCompatActivity() {
             generateQRCode()
         } else {
             Toast.makeText(this, "Camera permission required", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    private val requestLocationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            // İzin verildi, QR kod oluşturmayı tekrar dene (mevcut seçimleri kullan)
+            val selectedCourse = courses[binding.spinnerCourse.selectedItemPosition]
+            val selectedWeek = weeks[binding.spinnerWeek.selectedItemPosition]
+            val duration = when {
+                binding.rb5min.isChecked -> 5
+                binding.rb10min.isChecked -> 10
+                binding.rb15min.isChecked -> 15
+                binding.rb30min.isChecked -> 30
+                binding.rb60min.isChecked -> 60
+                else -> 60
+            }
+            proceedWithQRGeneration(selectedCourse, selectedWeek, duration)
+        } else {
+            Toast.makeText(this, "Konum izni verilmedi. QR kod konum bilgisi olmadan oluşturulacak.", Toast.LENGTH_LONG).show()
+            // Yine de QR kod oluştur (konum olmadan)
+            val selectedCourse = courses[binding.spinnerCourse.selectedItemPosition]
+            val selectedWeek = weeks[binding.spinnerWeek.selectedItemPosition]
+            val duration = when {
+                binding.rb5min.isChecked -> 5
+                binding.rb10min.isChecked -> 10
+                binding.rb15min.isChecked -> 15
+                binding.rb30min.isChecked -> 30
+                binding.rb60min.isChecked -> 60
+                else -> 60
+            }
+            proceedWithQRGeneration(selectedCourse, selectedWeek, duration)
         }
     }
 
@@ -353,34 +389,106 @@ class TeacherActivity : AppCompatActivity() {
         binding.progressBar.visibility = android.view.View.VISIBLE
         binding.btnGenerateQR.isEnabled = false
 
+        // Konum izni kontrolü - yoksa request et
+        if (!LocationHelper.hasLocationPermission(this)) {
+            android.util.Log.d("TeacherActivity", "Location permission not granted, requesting...")
+            requestLocationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+            binding.progressBar.visibility = android.view.View.GONE
+            binding.btnGenerateQR.isEnabled = true
+            return
+        }
+        
+        // İzin varsa, konum al ve QR kod oluştur
+        proceedWithQRGeneration(selectedCourse, selectedWeek, duration)
+    }
+    
+    private fun proceedWithQRGeneration(selectedCourse: Course, selectedWeek: Week, duration: Int) {
+        val course = selectedCourse
+        val week = selectedWeek
+        
+        binding.progressBar.visibility = android.view.View.VISIBLE
+        binding.btnGenerateQR.isEnabled = false
+
         lifecycleScope.launch {
             try {
+                // Konum izinlerini kontrol et ve konum al
+                var teacherLatitude: Double? = null
+                var teacherLongitude: Double? = null
+                
+                if (LocationHelper.hasLocationPermission(this@TeacherActivity)) {
+                    if (LocationHelper.isLocationEnabled(this@TeacherActivity)) {
+                        android.util.Log.d("TeacherActivity", "Getting teacher location...")
+                        val location = LocationHelper.getCurrentLocation(this@TeacherActivity)
+                        if (location != null) {
+                            teacherLatitude = location.latitude
+                            teacherLongitude = location.longitude
+                            android.util.Log.d("TeacherActivity", "Teacher location: lat=$teacherLatitude, lon=$teacherLongitude")
+                        } else {
+                            android.util.Log.w("TeacherActivity", "Could not get teacher location")
+                            runOnUiThread {
+                                Toast.makeText(this@TeacherActivity, "Konum alınamadı. QR kod konum bilgisi olmadan oluşturulacak.", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    } else {
+                        android.util.Log.w("TeacherActivity", "Location services disabled")
+                        runOnUiThread {
+                            AlertDialog.Builder(this@TeacherActivity)
+                                .setTitle("Konum Servisleri Kapalı")
+                                .setMessage("QR kod oluşturmak için konum servislerinin açık olması gerekiyor. Konum ayarlarına gitmek ister misiniz?")
+                                .setPositiveButton("Ayarlara Git") { _, _ ->
+                                    val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                                    startActivity(intent)
+                                    // Ayarlardan dönünce QR kod oluşturmayı tekrar dene
+                                    binding.progressBar.visibility = android.view.View.GONE
+                                    binding.btnGenerateQR.isEnabled = true
+                                }
+                                .setNegativeButton("Konum Olmadan Devam Et") { _, _ ->
+                                    Toast.makeText(this@TeacherActivity, "QR kod konum bilgisi olmadan oluşturulacak.", Toast.LENGTH_LONG).show()
+                                    // Konum olmadan devam et
+                                    lifecycleScope.launch {
+                                        createQRCodeWithoutLocation(course, week, duration)
+                                    }
+                                }
+                                .setCancelable(false)
+                                .show()
+                        }
+                        return@launch
+                    }
+                } else {
+                    android.util.Log.w("TeacherActivity", "Location permission not granted")
+                    runOnUiThread {
+                        Toast.makeText(this@TeacherActivity, "Konum izni verilmedi. QR kod konum bilgisi olmadan oluşturulacak.", Toast.LENGTH_LONG).show()
+                    }
+                }
+                
                 // Create QR on server (Edge Function) so student validation can find it in DB
                 // courseId is stored as String in Course.uuid field, convert to Long
-                val courseIdToSend = if (!selectedCourse.uuid.isNullOrBlank()) {
+                val courseIdToSend = if (!course.uuid.isNullOrBlank()) {
                     try {
-                        selectedCourse.uuid.toLong()
+                        course.uuid.toLong()
                     } catch (e: NumberFormatException) {
-                        android.util.Log.e("TeacherActivity", "Invalid courseId format: ${selectedCourse.uuid}")
+                        android.util.Log.e("TeacherActivity", "Invalid courseId format: ${course.uuid}")
                         Toast.makeText(this@TeacherActivity, "Ders ID geçersiz. Lütfen geçerli bir ders seçin.", Toast.LENGTH_LONG).show()
                         binding.btnGenerateQR.isEnabled = true
                         return@launch
                     }
                 } else {
                     // This should not happen for valid courses, but handle gracefully
-                    android.util.Log.e("TeacherActivity", "Missing courseId for course: ${selectedCourse.name}, id=${selectedCourse.id}")
+                    android.util.Log.e("TeacherActivity", "Missing courseId for course: ${course.name}, id=${course.id}")
                     Toast.makeText(this@TeacherActivity, "Ders ID bulunamadı. Lütfen geçerli bir ders seçin.", Toast.LENGTH_LONG).show()
                     binding.btnGenerateQR.isEnabled = true
                     return@launch
                 }
                 
-                android.util.Log.d("TeacherActivity", "Creating QR with courseId (BIGINT): $courseIdToSend (course=${selectedCourse.name})")
+                android.util.Log.d("TeacherActivity", "Creating QR with courseId (BIGINT): $courseIdToSend (course=${course.name})")
                 
                 val response = withContext(Dispatchers.IO) {
                     apiService.createQRCode(
                         courseId = courseIdToSend,
-                        weekNumber = selectedWeek.id,
-                        expireAfterMinutes = duration
+                        weekNumber = week.id,
+                        expireAfterMinutes = duration,
+                        teacherLatitude = teacherLatitude,
+                        teacherLongitude = teacherLongitude
                     )
                 }
 
@@ -391,22 +499,42 @@ class TeacherActivity : AppCompatActivity() {
 
                 val qrData = response.qr
 
-                // Create JSON string for QR code matching server schema
+                // Create JSON string for QR code matching server schema (include location if available)
+                val locationJson = if (qrData.teacherLatitude != null && qrData.teacherLongitude != null) {
+                    """,
+                        "teacher_latitude": ${qrData.teacherLatitude},
+                        "teacher_longitude": ${qrData.teacherLongitude}"""
+                } else {
+                    ""
+                }
+                
                 val qrJson = """
                     {
                         "course_id": ${qrData.courseId},
                         "week_number": ${qrData.weekNumber},
                         "created_at": "${qrData.createdAt}",
-                        "expire_after": ${qrData.expireAfter}
+                        "expire_after": ${qrData.expireAfter}$locationJson
                     }
                 """.trimIndent()
 
                 // Mark this week as having QR code created (persisted)
+                val weekKey = Pair(course.id, week.id)
                 qrCreatedWeeks.add(weekKey)
                 persistCreatedWeeks()
 
                 // Update status with course and week info
-                binding.tvStatus.text = "${selectedCourse.name} - ${selectedWeek.name} için QR kod oluşturuldu!"
+                binding.tvStatus.text = "${course.name} - ${week.name} için QR kod oluşturuldu!"
+
+                // Konum bilgisi varsa kullanıcıya bilgilendirme mesajı göster
+                if (teacherLatitude != null && teacherLongitude != null) {
+                    runOnUiThread {
+                        Toast.makeText(
+                            this@TeacherActivity,
+                            "Konum bilgisi kaydedildi. Bulunduğunuz konumun 30 metre çevresinde yoklama alınabilecek.",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
 
                 val expiresAtEpoch = runCatching {
                     Instant.parse(qrData.createdAt).epochSecond + qrData.expireAfter * 60
@@ -418,11 +546,11 @@ class TeacherActivity : AppCompatActivity() {
                 persistActiveQR(
                     qrJson = qrJson,
                     expiresAt = expiresAtEpoch,
-                    courseName = selectedCourse.name,
-                    weekName = selectedWeek.name
+                    courseName = course.name,
+                    weekName = week.name
                 )
 
-                showActiveQR(qrJson, expiresAtEpoch, selectedCourse.name, selectedWeek.name)
+                showActiveQR(qrJson, expiresAtEpoch, course.name, week.name)
 
             } catch (e: Exception) {
                 android.util.Log.e("TeacherActivity", "QR creation error: ${e.javaClass.simpleName} - ${e.message}", e)
@@ -437,6 +565,96 @@ class TeacherActivity : AppCompatActivity() {
                 binding.progressBar.visibility = android.view.View.GONE
                 binding.btnGenerateQR.isEnabled = true
             }
+        }
+    }
+    
+    private suspend fun createQRCodeWithoutLocation(course: Course, week: Week, duration: Int) {
+        binding.progressBar.visibility = android.view.View.VISIBLE
+        binding.btnGenerateQR.isEnabled = false
+        
+        try {
+            // Create QR on server (Edge Function) so student validation can find it in DB
+            val courseIdToSend = if (!course.uuid.isNullOrBlank()) {
+                try {
+                    course.uuid.toLong()
+                } catch (e: NumberFormatException) {
+                    android.util.Log.e("TeacherActivity", "Invalid courseId format: ${course.uuid}")
+                    Toast.makeText(this@TeacherActivity, "Ders ID geçersiz. Lütfen geçerli bir ders seçin.", Toast.LENGTH_LONG).show()
+                    binding.btnGenerateQR.isEnabled = true
+                    return
+                }
+            } else {
+                android.util.Log.e("TeacherActivity", "Missing courseId for course: ${course.name}, id=${course.id}")
+                Toast.makeText(this@TeacherActivity, "Ders ID bulunamadı. Lütfen geçerli bir ders seçin.", Toast.LENGTH_LONG).show()
+                binding.btnGenerateQR.isEnabled = true
+                return
+            }
+            
+            android.util.Log.d("TeacherActivity", "Creating QR without location with courseId (BIGINT): $courseIdToSend (course=${course.name})")
+            
+            val response = withContext(Dispatchers.IO) {
+                apiService.createQRCode(
+                    courseId = courseIdToSend,
+                    weekNumber = week.id,
+                    expireAfterMinutes = duration,
+                    teacherLatitude = null,
+                    teacherLongitude = null
+                )
+            }
+
+            if (response == null) {
+                Toast.makeText(this@TeacherActivity, "QR kod oluşturulamadı", Toast.LENGTH_LONG).show()
+                return
+            }
+
+            val qrData = response.qr
+
+            // Create JSON string for QR code matching server schema (no location)
+            val qrJson = """
+                {
+                    "course_id": ${qrData.courseId},
+                    "week_number": ${qrData.weekNumber},
+                    "created_at": "${qrData.createdAt}",
+                    "expire_after": ${qrData.expireAfter}
+                }
+            """.trimIndent()
+
+            // Mark this week as having QR code created (persisted)
+            val weekKey = Pair(course.id, week.id)
+            qrCreatedWeeks.add(weekKey)
+            persistCreatedWeeks()
+
+            // Update status with course and week info
+            binding.tvStatus.text = "${course.name} - ${week.name} için QR kod oluşturuldu!"
+
+            val expiresAtEpoch = runCatching {
+                Instant.parse(qrData.createdAt).epochSecond + qrData.expireAfter * 60
+            }.getOrElse {
+                android.util.Log.w("TeacherActivity", "Unable to parse createdAt, using now for expiry")
+                Instant.now().epochSecond + qrData.expireAfter * 60
+            }
+
+            persistActiveQR(
+                qrJson = qrJson,
+                expiresAt = expiresAtEpoch,
+                courseName = course.name,
+                weekName = week.name
+            )
+
+            showActiveQR(qrJson, expiresAtEpoch, course.name, week.name)
+
+        } catch (e: Exception) {
+            android.util.Log.e("TeacherActivity", "QR creation error: ${e.javaClass.simpleName} - ${e.message}", e)
+            val errorMessage = when {
+                e.message?.contains("Failed to connect") == true -> "Sunucuya bağlanılamadı. İnternet bağlantınızı kontrol edin."
+                e.message?.contains("timeout") == true -> "İstek zaman aşımına uğradı. Lütfen tekrar deneyin."
+                e.message?.contains("Unknown host") == true -> "Sunucu bulunamadı. İnternet bağlantınızı kontrol edin."
+                else -> "QR kod oluşturma hatası: ${e.message ?: "Bilinmeyen hata"}"
+            }
+            Toast.makeText(this@TeacherActivity, errorMessage, Toast.LENGTH_LONG).show()
+        } finally {
+            binding.progressBar.visibility = android.view.View.GONE
+            binding.btnGenerateQR.isEnabled = true
         }
     }
     
