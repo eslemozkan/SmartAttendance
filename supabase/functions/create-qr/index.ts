@@ -9,6 +9,8 @@ type CreateQrInput = {
   course_id?: string | number; // BIGINT number (courses.id is BIGINT)
   week_number?: number;
   expire_after_minutes?: number;
+  teacher_latitude?: number;
+  teacher_longitude?: number;
 };
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -71,6 +73,8 @@ Deno.serve(async (req) => {
 
     const week_number = Number(input.week_number);
     const expire_after_minutes = Number(input.expire_after_minutes ?? 15);
+    const teacher_latitude = input.teacher_latitude ? Number(input.teacher_latitude) : null;
+    const teacher_longitude = input.teacher_longitude ? Number(input.teacher_longitude) : null;
 
     if (!course_id || !Number.isFinite(course_id) || course_id <= 0 || !week_number || !Number.isFinite(expire_after_minutes) || expire_after_minutes <= 0) {
       return jsonResponse(400, { error: "course_id (BIGINT), week_number and expire_after_minutes (positive numbers) required" });
@@ -121,12 +125,25 @@ Deno.serve(async (req) => {
     }
 
     console.log("Inserting new QR code...");
+    console.log("Location:", { teacher_latitude, teacher_longitude });
     
-    // Insert new QR record
+    // Insert new QR record with location if provided
+    const insertData: any = { 
+      course_id, 
+      week_number, 
+      expire_after_minutes, 
+      is_active: true 
+    };
+    
+    if (teacher_latitude != null && teacher_longitude != null) {
+      insertData.teacher_latitude = teacher_latitude;
+      insertData.teacher_longitude = teacher_longitude;
+    }
+    
     const { data: inserted, error: insErr } = await supabase
       .from("qr_codes")
-      .insert({ course_id, week_number, expire_after_minutes, is_active: true })
-      .select("id, created_at")
+      .insert(insertData)
+      .select("id, created_at, teacher_latitude, teacher_longitude")
       .single();
 
     if (insErr) {
@@ -154,6 +171,8 @@ Deno.serve(async (req) => {
         week_number,
         created_at: inserted.created_at,
         expire_after: expire_after_minutes,
+        teacher_latitude: inserted.teacher_latitude || null,
+        teacher_longitude: inserted.teacher_longitude || null,
       },
     };
 

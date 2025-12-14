@@ -36,6 +36,21 @@
         <activity 
             android:name=".SignupActivity"
             android:exported="false" />
+        <activity 
+            android:name=".ChangePasswordActivity"
+            android:exported="false" />
+        <activity 
+            android:name=".ResetPasswordActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="com.smartattendance.app"
+                    android:host="reset-password" />
+            </intent-filter>
+        </activity>
         
         <provider
             android:name="androidx.core.content.FileProvider"

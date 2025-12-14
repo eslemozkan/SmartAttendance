@@ -10,6 +10,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.smartattendance.app.databinding.ActivityLoginBinding
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 
 class LoginActivity : AppCompatActivity() {
     private lateinit var binding: ActivityLoginBinding
@@ -89,6 +93,16 @@ class LoginActivity : AppCompatActivity() {
             binding.tvRoleSubtitle.text = "Akademik Yoklama Sistemi"
         }
 
+        // Forgot password link (Student)
+        binding.tvForgotPassword.setOnClickListener {
+            showForgotPasswordDialog(true) // true = student
+        }
+
+        // Forgot password link (Teacher)
+        binding.tvTeacherForgotPassword.setOnClickListener {
+            showForgotPasswordDialog(false) // false = teacher
+        }
+
         // Signup link
         binding.tvSignupLink.setOnClickListener {
             val intent = Intent(this, SignupActivity::class.java)
@@ -101,6 +115,159 @@ class LoginActivity : AppCompatActivity() {
             intent.putExtra("prefill_role", "teacher")
             startActivity(intent)
         }
+    }
+    
+    private fun showForgotPasswordDialog(isStudent: Boolean) {
+        val email = if (isStudent) {
+            binding.etStudentEmail.text.toString().trim()
+        } else {
+            binding.etTeacherEmail.text.toString().trim()
+        }
+        
+        val input = android.widget.EditText(this)
+        input.hint = "E-posta adresinizi girin"
+        input.inputType = android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+        if (email.isNotEmpty()) {
+            input.setText(email)
+        }
+        
+        // Set padding for EditText
+        val padding = (16 * resources.displayMetrics.density).toInt()
+        input.setPadding(padding, padding, padding, padding)
+        
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Şifremi Unuttum")
+            .setMessage("E-posta adresinize şifre sıfırlama bağlantısı gönderilecektir.")
+            .setView(input)
+            .setPositiveButton("Gönder") { _, _ ->
+                val emailToSend = input.text.toString().trim()
+                if (emailToSend.isNotEmpty()) {
+                    resetPassword(emailToSend)
+                } else {
+                    Toast.makeText(this, "Lütfen e-posta adresinizi girin", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("İptal", null)
+            .create()
+        
+        dialog.show()
+    }
+    
+    private fun resetPassword(email: String) {
+        lifecycleScope.launch {
+            try {
+                binding.btnStudentLogin.isEnabled = false
+                binding.btnTeacherLogin.isEnabled = false
+                
+                // Use Supabase REST API directly for password reset
+                // This is the standard way to use Supabase's built-in password reset
+                val supabaseUrl = "https://oubvhffqbsxsnbtinzbl.supabase.co"
+                val anonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91YnZoZmZxYnN4c25idGluemJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4ODk4NzksImV4cCI6MjA3NjQ2NTg3OX0.kn6pYhbOFWBywNrenjZI9ZUPpOnwKugbIqZkOFcGrnI"
+                
+                val url = "$supabaseUrl/auth/v1/recover"
+                val payload = org.json.JSONObject().apply {
+                    put("email", email)
+                    put("redirect_to", SupabaseClient.REDIRECT_URL)
+                }
+                
+                val request = okhttp3.Request.Builder()
+                    .url(url)
+                    .post(payload.toString().toByteArray().toRequestBody("application/json".toMediaType()))
+                    .addHeader("Content-Type", "application/json")
+                    .addHeader("apikey", anonKey)
+                    .addHeader("Authorization", "Bearer $anonKey")
+                    .build()
+                
+                val client = okhttp3.OkHttpClient()
+                val response = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    client.newCall(request).execute()
+                }
+                
+                val responseBody = response.body?.string()
+                android.util.Log.d("LoginActivity", "Reset password response: ${response.code} - $responseBody")
+                
+                if (response.isSuccessful) {
+                    // Success - Supabase will send email automatically
+                    runOnUiThread {
+                        AlertDialog.Builder(this@LoginActivity)
+                            .setTitle("Şifre Sıfırlama")
+                            .setMessage("Şifre sıfırlama bağlantısı e-posta adresinize gönderildi. Lütfen e-postanızı (ve spam klasörünü) kontrol edin.")
+                            .setPositiveButton("Tamam", null)
+                            .show()
+                    }
+                } else {
+                    // Parse error message from response body
+                    var errorMsg = ""
+                    try {
+                        if (responseBody != null) {
+                            val jsonObject = org.json.JSONObject(responseBody)
+                            errorMsg = jsonObject.optString("msg", "")
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.w("LoginActivity", "Failed to parse error response: ${e.message}")
+                    }
+                    
+                    // Handle errors
+                    val errorMessage = when (response.code) {
+                        429 -> "Güvenlik nedeniyle, şifre sıfırlama isteği çok sık gönderilemez. Lütfen 60 saniye bekleyip tekrar deneyin."
+                        400 -> "Geçersiz e-posta adresi veya bu e-posta adresi sistemde kayıtlı değil."
+                        500 -> {
+                            if (errorMsg.contains("Error sending recovery email", ignoreCase = true)) {
+                                "E-posta gönderilemedi. Supabase SMTP ayarları yapılandırılmamış olabilir. Lütfen sistem yöneticisi ile iletişime geçin veya daha sonra tekrar deneyin."
+                            } else {
+                                "Sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin."
+                            }
+                        }
+                        else -> "Şifre sıfırlama isteği gönderilemedi. Hata kodu: ${response.code}"
+                    }
+                    
+                    runOnUiThread {
+                        AlertDialog.Builder(this@LoginActivity)
+                            .setTitle("Şifre Sıfırlama Hatası")
+                            .setMessage(errorMessage)
+                            .setPositiveButton("Tamam", null)
+                            .show()
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("LoginActivity", "Reset password error: ${e.message}", e)
+                
+                runOnUiThread {
+                    AlertDialog.Builder(this@LoginActivity)
+                        .setTitle("Şifre Sıfırlama Hatası")
+                        .setMessage("Şifre sıfırlama isteği gönderilemedi: ${e.message}")
+                        .setPositiveButton("Tamam", null)
+                        .show()
+                }
+            } finally {
+                binding.btnStudentLogin.isEnabled = true
+                binding.btnTeacherLogin.isEnabled = true
+            }
+        }
+    }
+    
+    private fun showResetLinkDialog(resetLink: String, email: String) {
+        val message = "Şifre sıfırlama bağlantınız hazır. Aşağıdaki bağlantıyı tarayıcınızda açarak şifrenizi sıfırlayabilirsiniz.\n\n$resetLink"
+        
+        AlertDialog.Builder(this)
+            .setTitle("Şifre Sıfırlama Bağlantısı")
+            .setMessage(message)
+            .setPositiveButton("Bağlantıyı Kopyala") { _, _ ->
+                val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val clip = android.content.ClipData.newPlainText("Reset Link", resetLink)
+                clipboard.setPrimaryClip(clip)
+                Toast.makeText(this, "Bağlantı kopyalandı! Tarayıcınızda yapıştırıp açabilirsiniz.", Toast.LENGTH_LONG).show()
+            }
+            .setNeutralButton("Tarayıcıda Aç") { _, _ ->
+                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(resetLink))
+                try {
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    Toast.makeText(this, "Tarayıcı açılamadı. Lütfen bağlantıyı kopyalayın.", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Kapat", null)
+            .show()
     }
 
     private fun performStudentLogin(email: String, password: String) {

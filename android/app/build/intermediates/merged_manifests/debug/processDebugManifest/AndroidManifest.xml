@@ -78,6 +78,23 @@
         <activity
             android:name="com.smartattendance.app.SignupActivity"
             android:exported="false" />
+        <activity
+            android:name="com.smartattendance.app.ChangePasswordActivity"
+            android:exported="false" />
+        <activity
+            android:name="com.smartattendance.app.ResetPasswordActivity"
+            android:exported="true" >
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="reset-password"
+                    android:scheme="com.smartattendance.app" />
+            </intent-filter>
+        </activity>
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -123,10 +140,6 @@
             android:exported="false"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
-        <meta-data
-            android:name="com.google.android.gms.version"
-            android:value="@integer/google_play_services_version" />
-
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="com.smartattendance.app.debug.androidx-startup"
@@ -135,12 +148,22 @@
                 android:name="androidx.emoji2.text.EmojiCompatInitializer"
                 android:value="androidx.startup" />
             <meta-data
+                android:name="io.github.jan.supabase.gotrue.SupabaseInitializer"
+                android:value="androidx.startup" />
+            <meta-data
                 android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+                android:value="androidx.startup" />
+            <meta-data
+                android:name="com.russhwolf.settings.SettingsInitializer"
                 android:value="androidx.startup" />
             <meta-data
                 android:name="androidx.profileinstaller.ProfileInstallerInitializer"
                 android:value="androidx.startup" />
         </provider>
+
+        <meta-data
+            android:name="com.google.android.gms.version"
+            android:value="@integer/google_play_services_version" />
 
         <receiver
             android:name="androidx.profileinstaller.ProfileInstallReceiver"

@@ -245,7 +245,7 @@
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:text="Çıkış Yap"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="12dp"
             android:background="@drawable/button_academic_outline"
             android:textColor="@color/academic_error"/>
 

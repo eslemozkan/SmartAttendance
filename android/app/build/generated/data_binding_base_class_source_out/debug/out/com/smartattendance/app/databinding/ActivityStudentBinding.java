@@ -25,6 +25,9 @@ public final class ActivityStudentBinding implements ViewBinding {
   public final Button btnCheckAttendance;
 
   @NonNull
+  public final Button btnLogout;
+
+  @NonNull
   public final Button btnStartScan;
 
   @NonNull
@@ -37,10 +40,11 @@ public final class ActivityStudentBinding implements ViewBinding {
   public final TextView tvStatus;
 
   private ActivityStudentBinding(@NonNull LinearLayout rootView, @NonNull Button btnCheckAttendance,
-      @NonNull Button btnStartScan, @NonNull Button btnStopScan, @NonNull PreviewView previewView,
-      @NonNull TextView tvStatus) {
+      @NonNull Button btnLogout, @NonNull Button btnStartScan, @NonNull Button btnStopScan,
+      @NonNull PreviewView previewView, @NonNull TextView tvStatus) {
     this.rootView = rootView;
     this.btnCheckAttendance = btnCheckAttendance;
+    this.btnLogout = btnLogout;
     this.btnStartScan = btnStartScan;
     this.btnStopScan = btnStopScan;
     this.previewView = previewView;
@@ -80,6 +84,12 @@ public final class ActivityStudentBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.btnLogout;
+      Button btnLogout = ViewBindings.findChildViewById(rootView, id);
+      if (btnLogout == null) {
+        break missingId;
+      }
+
       id = R.id.btnStartScan;
       Button btnStartScan = ViewBindings.findChildViewById(rootView, id);
       if (btnStartScan == null) {
@@ -104,8 +114,8 @@ public final class ActivityStudentBinding implements ViewBinding {
         break missingId;
       }
 
-      return new ActivityStudentBinding((LinearLayout) rootView, btnCheckAttendance, btnStartScan,
-          btnStopScan, previewView, tvStatus);
+      return new ActivityStudentBinding((LinearLayout) rootView, btnCheckAttendance, btnLogout,
+          btnStartScan, btnStopScan, previewView, tvStatus);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

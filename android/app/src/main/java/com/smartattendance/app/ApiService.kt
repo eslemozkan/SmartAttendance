@@ -374,6 +374,111 @@ class ApiService {
         }
     }
     
+    suspend fun resetPassword(email: String): ResetPasswordResult {
+        return try {
+            android.util.Log.d("ApiService", "=== Password Reset Request ===")
+            android.util.Log.d("ApiService", "Email: $email")
+            
+            // Use Edge Function instead of direct Supabase Auth API
+            val url = "$functionsBaseUrl/reset-password"
+            val payload = """{"email":"$email"}"""
+            
+            android.util.Log.d("ApiService", "URL: $url")
+            android.util.Log.d("ApiService", "Payload: $payload")
+            
+            val request = Request.Builder()
+                .url(url)
+                .post(payload.toRequestBody("application/json".toMediaType()))
+                .addHeader("Content-Type", "application/json")
+                .addHeader("Authorization", "Bearer $anonKey")
+                .addHeader("apikey", anonKey)
+                .build()
+            
+            val response = withContext(Dispatchers.IO) {
+                client.newCall(request).execute()
+            }
+            
+            val body = response.body?.string()
+            android.util.Log.d("ApiService", "Response Code: ${response.code}")
+            android.util.Log.d("ApiService", "Response Body: $body")
+            
+            if (response.isSuccessful && body != null) {
+                try {
+                    // Parse JSON response from edge function
+                    val jsonObject = org.json.JSONObject(body)
+                    val ok = jsonObject.optBoolean("ok", false)
+                    val message = jsonObject.optString("message", "Şifre sıfırlama isteği işlendi.")
+                    val error = jsonObject.optString("error", null)
+                    val resetLink = jsonObject.optString("resetLink", null)
+                    val emailSent = jsonObject.optBoolean("emailSent", false)
+                    
+                    android.util.Log.d("ApiService", "Password reset response parsed: ok=$ok, emailSent=$emailSent, error=$error")
+                    
+                    if (!ok && error != null) {
+                        // Edge function returned an error
+                        android.util.Log.e("ApiService", "Edge function error: $error")
+                        ResetPasswordResult(
+                            false,
+                            "Şifre sıfırlama hatası: $error",
+                            null,
+                            email
+                        )
+                    } else {
+                        ResetPasswordResult(
+                            ok,
+                            message,
+                            if (resetLink.isNullOrEmpty()) null else resetLink,
+                            email
+                        )
+                    }
+                } catch (e: org.json.JSONException) {
+                    android.util.Log.e("ApiService", "Failed to parse reset password response: ${e.message}")
+                    android.util.Log.e("ApiService", "Raw response body: $body")
+                    ResetPasswordResult(
+                        false,
+                        "Sunucu yanıtı işlenemedi. Lütfen daha sonra tekrar deneyin.",
+                        null,
+                        email
+                    )
+                }
+            } else {
+                android.util.Log.w("ApiService", "Password reset request failed: ${response.code} - $body")
+                
+                // Try to parse error message from response body (for rate limit, etc.)
+                var errorMessage: String? = null
+                if (body != null) {
+                    try {
+                        val jsonObject = org.json.JSONObject(body)
+                        errorMessage = jsonObject.optString("message", null)
+                    } catch (e: Exception) {
+                        // Ignore parse errors
+                    }
+                }
+                
+                // Check if it's a 404 (function not deployed), 429 (rate limit), or 500 (server error)
+                val finalErrorMessage = errorMessage ?: when (response.code) {
+                    404 -> "Şifre sıfırlama servisi bulunamadı. Lütfen sistem yöneticisi ile iletişime geçin."
+                    429 -> "Güvenlik nedeniyle, şifre sıfırlama isteği çok sık gönderilemez. Lütfen 60 saniye bekleyip tekrar deneyin."
+                    500 -> "Sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin."
+                    else -> "Şifre sıfırlama isteği gönderilemedi. Hata kodu: ${response.code}. Lütfen daha sonra tekrar deneyin."
+                }
+                
+                ResetPasswordResult(
+                    false,
+                    finalErrorMessage,
+                    null,
+                    email
+                )
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("ApiService", "Password reset exception: ${e.message}", e)
+            android.util.Log.e("ApiService", "Exception type: ${e.javaClass.simpleName}")
+            ResetPasswordResult(false, "Bağlantı hatası: ${e.message ?: "Bilinmeyen hata"}")
+        }
+    }
+    
+    data class ResetPasswordResult(val success: Boolean, val message: String, val resetLink: String? = null, val email: String? = null)
+    
     suspend fun createQRCode(courseId: Long, weekNumber: Int, expireAfterMinutes: Int, teacherLatitude: Double? = null, teacherLongitude: Double? = null): CreateQRResponse? {
         return try {
             val request = CreateQRRequest(courseId, weekNumber, expireAfterMinutes, teacherLatitude, teacherLongitude)

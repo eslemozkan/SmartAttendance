@@ -166,6 +166,21 @@
 
             </LinearLayout>
 
+            <!-- Forgot Password Link -->
+            <TextView
+                android:id="@+id/tvForgotPassword"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Şifremi Unuttum"
+                android:textColor="@color/academic_primary"
+                android:textStyle="bold"
+                android:layout_gravity="center"
+                android:layout_marginTop="8dp"
+                android:padding="8dp"
+                android:background="?android:attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"/>
+
             <!-- Signup Link -->
             <TextView
                 android:id="@+id/tvSignupLink"
@@ -175,7 +190,7 @@
                 android:textColor="@color/academic_primary"
                 android:textStyle="bold"
                 android:layout_gravity="center"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="8dp"
                 android:padding="8dp"
                 android:background="?android:attr/selectableItemBackground"
                 android:clickable="true"
@@ -264,6 +279,21 @@
 
             </LinearLayout>
 
+            <!-- Forgot Password Link for Teacher -->
+            <TextView
+                android:id="@+id/tvTeacherForgotPassword"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Şifremi Unuttum"
+                android:textColor="@color/academic_primary"
+                android:textStyle="bold"
+                android:layout_gravity="center"
+                android:layout_marginTop="8dp"
+                android:padding="8dp"
+                android:background="?android:attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"/>
+
             <!-- Signup Link for Teacher -->
             <TextView
                 android:id="@+id/tvTeacherSignupLink"
@@ -273,7 +303,7 @@
                 android:textColor="@color/academic_primary"
                 android:textStyle="bold"
                 android:layout_gravity="center"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="8dp"
                 android:padding="8dp"
                 android:background="?android:attr/selectableItemBackground"
                 android:clickable="true"

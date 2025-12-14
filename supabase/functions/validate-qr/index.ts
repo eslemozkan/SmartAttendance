@@ -13,8 +13,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { course_id, week_number, created_at, expire_after, student_id, student_email } = await req.json();
-    console.info("Input:", { course_id, week_number, created_at, expire_after, student_id, student_email });
+    const { course_id, week_number, created_at, expire_after, student_id, student_email, student_latitude, student_longitude } = await req.json();
+    console.info("Input:", { course_id, week_number, created_at, expire_after, student_id, student_email, student_latitude, student_longitude });
     if (!course_id || !week_number) {
       return new Response(JSON.stringify({ ok: false, error: "missing_fields", required: ["course_id", "week_number"], got: { course_id, week_number } }), {
         status: 400,
@@ -104,18 +104,51 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Optional: check QR exists and is active (best-effort)
+    // Check QR exists and is active, and verify location if available
+    let teacherLatitude: number | null = null;
+    let teacherLongitude: number | null = null;
     try {
-      const qrUrl = `${supabaseUrl}/rest/v1/qr_codes?select=created_at,expire_after&course_id=eq.${course_id}&week_number=eq.${week_number}&is_active=eq.true`;
+      const qrUrl = `${supabaseUrl}/rest/v1/qr_codes?select=created_at,expire_after_minutes,teacher_latitude,teacher_longitude,is_active&course_id=eq.${course_id}&week_number=eq.${week_number}&is_active=eq.true`;
       const qrResp = await fetch(qrUrl, { headers: { apikey: apiKey, Authorization: `Bearer ${apiKey}`, Accept: "application/json" } });
       const qrData = await qrResp.json();
       if (Array.isArray(qrData) && qrData.length > 0) {
-        // If created_at/expire_after are provided in payload, we could enforce, but keep permissive for dev
+        const qr = qrData[0];
+        teacherLatitude = qr.teacher_latitude;
+        teacherLongitude = qr.teacher_longitude;
+        
+        // Location check: if both teacher and student locations are available, verify distance
+        if (teacherLatitude != null && teacherLongitude != null && 
+            student_latitude != null && student_longitude != null) {
+          // Haversine formula to calculate distance in meters
+          const R = 6371000; // Earth radius in meters
+          const dLat = (student_latitude - teacherLatitude) * Math.PI / 180;
+          const dLon = (student_longitude - teacherLongitude) * Math.PI / 180;
+          const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos(teacherLatitude * Math.PI / 180) * Math.cos(student_latitude * Math.PI / 180) *
+                    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          const distance = R * c; // Distance in meters
+          
+          const maxDistance = 30; // 30 meters
+          if (distance > maxDistance) {
+            console.info(`Location check failed: student is ${distance.toFixed(2)}m away (max: ${maxDistance}m)`);
+            return new Response(JSON.stringify({ ok: false, error: "location_too_far", distance: distance.toFixed(2), maxDistance }), {
+              status: 403,
+              headers: { "Content-Type": "application/json", ...corsHeaders },
+            });
+          }
+          console.info(`Location check passed: student is ${distance.toFixed(2)}m away (within ${maxDistance}m)`);
+        } else {
+          console.info("Location check skipped: teacher location or student location not available");
+        }
       } else {
         // If no active QR found, still allow for dev. Comment next line to enforce.
         // return new Response(JSON.stringify({ ok: false, error: "invalid_qr" }), { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
       }
-    } catch (_) {}
+    } catch (err) {
+      console.error("Error checking QR or location:", err);
+      // Continue without location check if there's an error
+    }
 
     // Enrollment check: ensure student belongs to a class that has this course
     try {
@@ -176,15 +209,21 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Insert attendance
+    // Insert attendance with location if available
     const insertUrl = `${supabaseUrl}/rest/v1/attendances`;
-    const payload = {
+    const payload: any = {
       course_id,
       week_number,
       student_id: studentIdForDuplicate,
       marked_at: new Date().toISOString(),
       method: "qr",
     };
+    
+    // Add student location if available
+    if (student_latitude != null && student_longitude != null) {
+      payload.student_latitude = student_latitude;
+      payload.student_longitude = student_longitude;
+    }
     const insertResp = await fetch(insertUrl, {
       method: "POST",
       headers: {

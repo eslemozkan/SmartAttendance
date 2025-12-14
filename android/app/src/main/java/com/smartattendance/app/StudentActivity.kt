@@ -83,6 +83,18 @@ class StudentActivity : AppCompatActivity() {
                 Toast.makeText(this, "Email bilgisi bulunamadı", Toast.LENGTH_SHORT).show()
             }
         }
+        
+        // Logout butonu
+        binding.btnLogout.setOnClickListener {
+            logout()
+        }
+    }
+    
+    private fun logout() {
+        val intent = Intent(this, LoginActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+        startActivity(intent)
+        finish()
     }
 
     private fun startScanning() {

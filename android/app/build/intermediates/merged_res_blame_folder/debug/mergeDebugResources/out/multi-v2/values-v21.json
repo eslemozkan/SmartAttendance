@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.smartattendance.app-mergeDebugResources-41:/values-v21/values-v21.xml",
+            "outputFile": "com.smartattendance.app-mergeDebugResources-43:/values-v21/values-v21.xml",
             "map": [
                 {
                     "source": "C:\\Users\\elife\\.gradle\\caches\\transforms-4\\eecbda8adc5521377f06f41deda43748\\transformed\\core-1.13.1\\res\\values-v21\\values-v21.xml",
