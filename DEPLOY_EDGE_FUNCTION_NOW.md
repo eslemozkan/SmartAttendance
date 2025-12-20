@@ -64,3 +64,5 @@ Eski kod önce Resend'e istek gönderiyordu. Yeni kod önce Supabase'in built-in
 **Edge function'ı deploy ettikten sonra tekrar test et!**
 
 
+
+

@@ -84,6 +84,8 @@
         <activity
             android:name="com.smartattendance.app.ResetPasswordActivity"
             android:exported="true" >
+
+            <!-- Deep link intent filter -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
 
@@ -93,6 +95,30 @@
                 <data
                     android:host="reset-password"
                     android:scheme="com.smartattendance.app" />
+            </intent-filter>
+            <!-- Web URL intent filter (Supabase email links) - Android App Links -->
+            <intent-filter android:autoVerify="true" >
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="oubvhffqbsxsnbtinzbl.supabase.co"
+                    android:pathPrefix="/auth/v1/verify"
+                    android:scheme="https" />
+            </intent-filter>
+            <!-- Gmail redirect URL handler -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="www.google.com"
+                    android:pathPrefix="/url"
+                    android:scheme="https" />
             </intent-filter>
         </activity>
 

@@ -67,3 +67,5 @@ Deploy başarılı olduğunda:
 - Resend Dashboard'da email durumunu kontrol et: https://resend.com/emails
 
 
+
+

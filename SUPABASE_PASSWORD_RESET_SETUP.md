@@ -131,3 +131,5 @@ SupabaseClient.client.auth.updateUser {
 
 Artık Supabase'in built-in password reset mekanizması kullanılıyor. Edge function'a veya manuel email gönderimine gerek yok!
 
+
+

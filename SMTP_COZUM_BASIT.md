@@ -97,3 +97,5 @@ SMTP ayarlarını yaptıktan sonra:
 4. Email gelmezse → Ayarları tekrar kontrol edin
 
 
+
+

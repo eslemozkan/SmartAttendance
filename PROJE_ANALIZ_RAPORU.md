@@ -399,3 +399,5 @@ Proje **temel özellikler açısından çalışıyor** ancak **eksik özellikler
 **Son Güncelleme:** 2025-01-16
 
 
+
+

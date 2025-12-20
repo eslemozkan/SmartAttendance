@@ -148,3 +148,5 @@ Hala çalışmıyorsa:
 3. Gmail/SendGrid/Mailgun dashboard'larından gönderim loglarını kontrol edin
 
 
+
+

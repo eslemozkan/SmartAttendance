@@ -88,3 +88,5 @@ SMTP ayarlarını kontrol etmek için Dashboard'da:
 - "Send test email" butonunu kullanın
 
 
+
+

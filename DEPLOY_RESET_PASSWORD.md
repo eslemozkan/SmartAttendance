@@ -156,3 +156,5 @@ Deploy başarılı olduktan sonra:
 4. Veya Dashboard'dan: Edge Functions > reset-password > Logs
 
 
+
+

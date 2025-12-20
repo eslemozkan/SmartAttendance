@@ -125,3 +125,5 @@ SMTP ayarlarını düzelttikten sonra:
 - ✅ Android uygulamasında şifre sıfırlama çalışmalı
 - ✅ Email gönderimi başarılı olmalı
 
+
+

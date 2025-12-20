@@ -100,3 +100,5 @@
 - Email gelmezse, edge function yine de reset link'ini döndürür (backup olarak)
 
 
+
+

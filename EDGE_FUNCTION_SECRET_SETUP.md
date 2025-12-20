@@ -84,3 +84,5 @@ supabase functions deploy reset-password
 - Secret ekledikten sonra edge function'ı yeniden deploy etmek gerekir.
 
 
+
+

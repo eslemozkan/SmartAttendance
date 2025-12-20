@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
       const recoverUrl = `${supabaseUrl}/auth/v1/recover`;
       const recoverPayload = JSON.stringify({ 
         email: email,
-        redirect_to: `${supabaseUrl}/auth/v1/verify?token=#token_hash&type=recovery`
+        redirect_to: `https://oubvhffqbsxsnbtinzbl.supabase.co/functions/v1/reset-password-page`
       });
       
       const recoverResponse = await fetch(recoverUrl, {

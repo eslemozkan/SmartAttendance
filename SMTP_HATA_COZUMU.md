@@ -93,3 +93,5 @@ Eğer SMTP yapılandırmak istemiyorsanız, şifre sıfırlama linkini manuel ol
 
 SMTP ayarlarını yaptıktan sonra şifre sıfırlama özelliği çalışmalı.
 
+
+

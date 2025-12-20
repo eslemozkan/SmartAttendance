@@ -100,3 +100,5 @@ Eğer "Send test email" butonu yoksa, direkt Android uygulamasında test edebili
 Hangi adımdasın? Sayfayı görebiliyor musun?
 
 
+
+

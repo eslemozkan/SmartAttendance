@@ -112,3 +112,5 @@ Gerçek bir email adresi kullanın (kayıtlı olmalı):
 Test email'i: `onboarding@resend.dev` kullanmayın (bu sadece gönderen adresi)
 
 
+
+

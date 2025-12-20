@@ -107,3 +107,5 @@ Sender Name: Fırat Üniversitesi (veya istediğiniz isim)
 Bu 3 değişikliği yaptıktan sonra "Send test email" ile test edin!
 
 
+
+

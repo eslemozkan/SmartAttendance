@@ -26,7 +26,7 @@ class TeacherActivity : AppCompatActivity() {
     
     // Dynamic courses loaded from Supabase (fallback includes "Ders Yok")
     private var courses: List<Course> = listOf(
-        Course(4, null, "Ders Yok", "", "")
+        Course(id = 4, uuid = null, name = "Ders Yok", code = "", schedule = "")
     )
     
     private val weeks = listOf(
@@ -76,10 +76,15 @@ class TeacherActivity : AppCompatActivity() {
                 val assigned = apiService.getAssignedCoursesForTeacher(email)
                 val mapped: List<Course> = (assigned ?: emptyList()).mapNotNull { row ->
                     val id = row.courseId?.toInt() ?: return@mapNotNull null
-                    val uuid = row.courseId?.toString()
                     val name = row.courseName ?: return@mapNotNull null
                     val code = row.courseCode ?: ""
-                    Course(id, uuid, name, code, "")
+                    Course(
+                        id = id,
+                        uuid = row.courseId?.toString(),
+                        name = name,
+                        code = code,
+                        schedule = ""
+                    )
                 }
                 if (mapped.isNotEmpty()) {
                     courses = mapped + courses.filter { it.id == 4 }
@@ -283,7 +288,7 @@ class TeacherActivity : AppCompatActivity() {
                 // Create QR on server (Edge Function) so student validation can find it in DB
                 val response = withContext(Dispatchers.IO) {
                     apiService.createQRCode(
-                        courseId = selectedCourse.uuid?.toLongOrNull() ?: return@withContext null,
+                        courseId = selectedCourse.id.toLong(),
                         weekNumber = selectedWeek.id,
                         expireAfterMinutes = duration
                     )

@@ -185,3 +185,5 @@ Eğer yukarıdaki adımlar işe yaramadıysa:
 2. **Gmail Support** ile iletişime geçin
 3. **Alternatif email sağlayıcısı** deneyin (SendGrid, Mailgun, vb.)
 
+
+

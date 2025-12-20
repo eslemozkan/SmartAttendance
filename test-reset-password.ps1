@@ -68,3 +68,5 @@ Write-Host "supabase functions logs reset-password" -ForegroundColor White
 Write-Host "Or check Dashboard > Edge Functions > reset-password > Logs" -ForegroundColor White
 
 
+
+

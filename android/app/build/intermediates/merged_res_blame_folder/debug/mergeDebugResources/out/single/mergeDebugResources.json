@@ -4,6 +4,10 @@
         "source": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-main-47:\\layout\\item_week.xml"
     },
     {
+        "merged": "com.smartattendance.app-debug-45:/drawable_badge_error.xml.flat",
+        "source": "com.smartattendance.app-main-47:/drawable/badge_error.xml"
+    },
+    {
         "merged": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-debug-45:\\layout_activity_signup.xml.flat",
         "source": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-main-47:\\layout\\activity_signup.xml"
     },
@@ -84,10 +88,6 @@
         "source": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-main-47:\\layout\\activity_reset_password.xml"
     },
     {
-        "merged": "com.smartattendance.app-debug-45:/layout_activity_reset_password.xml.flat",
-        "source": "com.smartattendance.app-main-47:/layout/activity_reset_password.xml"
-    },
-    {
         "merged": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-debug-45:\\drawable_ic_calendar.xml.flat",
         "source": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-main-47:\\drawable\\ic_calendar.xml"
     },
@@ -98,6 +98,10 @@
     {
         "merged": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-debug-45:\\drawable_ic_arrow_forward.xml.flat",
         "source": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-main-47:\\drawable\\ic_arrow_forward.xml"
+    },
+    {
+        "merged": "com.smartattendance.app-debug-45:/layout_activity_change_password.xml.flat",
+        "source": "com.smartattendance.app-main-47:/layout/activity_change_password.xml"
     },
     {
         "merged": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-debug-45:\\layout_activity_login.xml.flat",
