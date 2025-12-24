@@ -50,14 +50,54 @@ class StudentAttendanceAdapter : RecyclerView.Adapter<StudentAttendanceAdapter.C
                 tvNoWeeks.visibility = View.GONE
                 llAttendanceInfo.visibility = View.VISIBLE
                 
-                val totalWeeks = course.weeks.size
-                val attendedWeeks = course.weeks.count { it.hasAttendance }
-                val attendanceRate = if (totalWeeks > 0) {
-                    (attendedWeeks * 100 / totalWeeks)
-                } else 0
+                // Session bazlı yoklama hesaplaması
+                var totalSessions = 0
+                var attendedSessions = 0
+                var totalWeeks = course.weeks.size
+                var attendedWeeks = 0
                 
-                tvTotalWeeks.text = totalWeeks.toString()
-                tvAttendance.text = "$attendedWeeks/$totalWeeks"
+                course.weeks.forEach { week ->
+                    // Toplam session sayısını hesapla
+                    val weekTotalSessions = if (week.totalSessions > 0) {
+                        week.totalSessions
+                    } else if (week.weeklyHours > 0) {
+                        week.weeklyHours
+                    } else {
+                        0
+                    }
+                    
+                    totalSessions += weekTotalSessions
+                    
+                    // Katıldığı session sayısını hesapla
+                    if (week.hasAttendance) {
+                        attendedWeeks++
+                        if (week.attendedSessions.isNotEmpty()) {
+                            // Session bazlı yoklama varsa
+                            attendedSessions += week.attendedSessions.size
+                        } else if (weekTotalSessions > 0) {
+                            // Eski sistem (session_number null) - 1 session sayılır
+                            attendedSessions += 1
+                        }
+                    }
+                }
+                
+                // Yüzde hesaplama: Session bazlı (daha doğru)
+                val attendanceRate = if (totalSessions > 0) {
+                    (attendedSessions * 100 / totalSessions)
+                } else if (totalWeeks > 0) {
+                    // Fallback: Session bilgisi yoksa hafta bazlı
+                    (attendedWeeks * 100 / totalWeeks)
+                } else {
+                    0
+                }
+                
+                // Gösterim: Hafta sayısı ve session bazlı bilgi
+                tvTotalWeeks.text = "$totalWeeks hafta"
+                if (totalSessions > 0) {
+                    tvAttendance.text = "$attendedSessions/$totalSessions oturum"
+                } else {
+                    tvAttendance.text = "$attendedWeeks/$totalWeeks hafta"
+                }
                 tvAttendanceRate.text = "%$attendanceRate"
                 
                 // Renk kodlama
@@ -79,24 +119,77 @@ class StudentAttendanceAdapter : RecyclerView.Adapter<StudentAttendanceAdapter.C
             val dialog = android.app.AlertDialog.Builder(context)
             dialog.setTitle("${course.courseName} - Haftalık Detay")
             
+            // Özet bilgi hesapla
+            var totalSessions = 0
+            var attendedSessions = 0
+            var totalWeeks = course.weeks.size
+            var attendedWeeks = 0
+            
+            course.weeks.forEach { week ->
+                val weekTotalSessions = if (week.totalSessions > 0) {
+                    week.totalSessions
+                } else if (week.weeklyHours > 0) {
+                    week.weeklyHours
+                } else {
+                    0
+                }
+                totalSessions += weekTotalSessions
+                
+                if (week.hasAttendance) {
+                    attendedWeeks++
+                    if (week.attendedSessions.isNotEmpty()) {
+                        attendedSessions += week.attendedSessions.size
+                    } else if (weekTotalSessions > 0) {
+                        attendedSessions += 1
+                    }
+                }
+            }
+            
+            val attendanceRate = if (totalSessions > 0) {
+                (attendedSessions * 100 / totalSessions)
+            } else if (totalWeeks > 0) {
+                (attendedWeeks * 100 / totalWeeks)
+            } else {
+                0
+            }
+            
+            val summaryText = if (totalSessions > 0) {
+                "Toplam: $attendedSessions/$totalSessions oturum (%$attendanceRate)\n$attendedWeeks/$totalWeeks hafta yoklama alınmış"
+            } else {
+                "Toplam: $attendedWeeks/$totalWeeks hafta (%$attendanceRate)"
+            }
+            
             val weekDetails = course.weeks.map { week ->
+                val weekTotalSessions = if (week.totalSessions > 0) {
+                    week.totalSessions
+                } else if (week.weeklyHours > 0) {
+                    week.weeklyHours
+                } else {
+                    0
+                }
+                
                 val status = if (week.hasAttendance) {
                     val time = week.attendanceTime?.let { formatDateTime(it) } ?: ""
                     // Session bazlı bilgi göster
-                    if (week.totalSessions > 0) {
-                        val sessionInfo = if (week.attendedSessions.isNotEmpty()) {
-                            " (${week.attendedSessions.size}/${week.totalSessions} oturum: ${week.attendedSessions.joinToString(", ")})"
+                    if (weekTotalSessions > 0) {
+                        val attendedCount = if (week.attendedSessions.isNotEmpty()) {
+                            week.attendedSessions.size
                         } else {
-                            " (0/${week.totalSessions} oturum)"
+                            1 // Eski sistem
                         }
-                        "Hafta ${week.weekNumber}: ✅ VAR$sessionInfo $time"
+                        val sessionList = if (week.attendedSessions.isNotEmpty()) {
+                            " (${week.attendedSessions.joinToString(", ")}. oturumlar)"
+                        } else {
+                            ""
+                        }
+                        "Hafta ${week.weekNumber}: ✅ $attendedCount/$weekTotalSessions oturum$sessionList\n   $time"
                     } else {
-                        "Hafta ${week.weekNumber}: ✅ VAR $time"
+                        "Hafta ${week.weekNumber}: ✅ VAR\n   $time"
                     }
                 } else {
                     // Session bilgisi varsa göster
-                    if (week.totalSessions > 0) {
-                        "Hafta ${week.weekNumber}: ❌ YOK (0/${week.totalSessions} oturum)"
+                    if (weekTotalSessions > 0) {
+                        "Hafta ${week.weekNumber}: ❌ YOK (0/$weekTotalSessions oturum)"
                     } else {
                         "Hafta ${week.weekNumber}: ❌ YOK"
                     }
@@ -107,9 +200,8 @@ class StudentAttendanceAdapter : RecyclerView.Adapter<StudentAttendanceAdapter.C
             if (weekDetails.isEmpty()) {
                 dialog.setMessage("Henüz QR kod oluşturulmamış hafta bulunmuyor.")
             } else {
-                dialog.setItems(weekDetails.toTypedArray()) { dialog, _ ->
-                    dialog.dismiss()
-                }
+                val fullMessage = "$summaryText\n\n" + weekDetails.joinToString("\n\n")
+                dialog.setMessage(fullMessage)
             }
             
             dialog.setPositiveButton("Kapat") { dialog, _ ->
