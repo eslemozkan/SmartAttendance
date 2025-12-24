@@ -414,12 +414,45 @@ class TeacherActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
+                // Öğretmenin konumunu al
+                var teacherLatitude: Double? = null
+                var teacherLongitude: Double? = null
+                
+                if (LocationHelper.hasLocationPermission(this@TeacherActivity)) {
+                    if (LocationHelper.isLocationEnabled(this@TeacherActivity)) {
+                        android.util.Log.d("TeacherActivity", "Getting teacher location...")
+                        val location = LocationHelper.getCurrentLocation(this@TeacherActivity)
+                        if (location != null) {
+                            teacherLatitude = location.latitude
+                            teacherLongitude = location.longitude
+                            android.util.Log.d("TeacherActivity", "Teacher location: lat=$teacherLatitude, lon=$teacherLongitude")
+                        } else {
+                            android.util.Log.w("TeacherActivity", "Could not get teacher location")
+                            runOnUiThread {
+                                Toast.makeText(this@TeacherActivity, "Konum alınamadı. QR kod oluşturuluyor ancak konum kontrolü yapılamayacak.", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    } else {
+                        android.util.Log.w("TeacherActivity", "Location services disabled")
+                        runOnUiThread {
+                            Toast.makeText(this@TeacherActivity, "Konum servisleri kapalı. QR kod oluşturuluyor ancak konum kontrolü yapılamayacak.", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                } else {
+                    android.util.Log.w("TeacherActivity", "Location permission not granted")
+                    runOnUiThread {
+                        Toast.makeText(this@TeacherActivity, "Konum izni verilmedi. QR kod oluşturuluyor ancak konum kontrolü yapılamayacak.", Toast.LENGTH_LONG).show()
+                    }
+                }
+                
                 // Create QR on server (Edge Function) so student validation can find it in DB
                 val response = withContext(Dispatchers.IO) {
                     apiService.createQRCode(
                         courseId = selectedCourse.id.toLong(),
                         weekNumber = selectedWeek.id,
                         expireAfterMinutes = duration,
+                        teacherLatitude = teacherLatitude,
+                        teacherLongitude = teacherLongitude,
                         sessionNumbers = selectedSessions
                     )
                 }
