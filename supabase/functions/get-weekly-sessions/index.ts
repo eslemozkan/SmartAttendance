@@ -89,28 +89,31 @@ Deno.serve(async (req) => {
       (existingSessions || []).map((s) => [s.session_number, s])
     );
 
-    // Build response: available sessions (not completed yet)
-    const availableSessions = allSessions
-      .map((sessionNumber) => {
-        const existing = existingSessionsMap.get(sessionNumber);
-        return {
-          session_number: sessionNumber,
-          is_completed: existing?.qr_code_id != null,
-          session_id: existing?.id || null,
-          qr_code_id: existing?.qr_code_id || null,
-          created_at: existing?.created_at || null,
-        };
-      })
-      .filter((s) => !s.is_completed); // Only return available (not completed) sessions
+    // Build response: all sessions (both available and completed)
+    const allSessionsData = allSessions.map((sessionNumber) => {
+      const existing = existingSessionsMap.get(sessionNumber);
+      return {
+        session_number: sessionNumber,
+        is_completed: existing?.qr_code_id != null,
+        session_id: existing?.id || null,
+        qr_code_id: existing?.qr_code_id || null,
+        created_at: existing?.created_at || null,
+      };
+    });
+    
+    // Separate available and completed sessions
+    const availableSessions = allSessionsData.filter((s) => !s.is_completed);
+    const completedSessions = allSessionsData.filter((s) => s.is_completed);
 
     return new Response(
       JSON.stringify({
         course_id: Number(course_id),
         week_number: Number(week_number),
         weekly_hours: weeklyHours,
-        available_sessions: availableSessions,
+        available_sessions: availableSessions, // Not completed sessions (for selection)
+        all_sessions: allSessionsData, // All sessions (for display)
         total_sessions: weeklyHours,
-        completed_sessions: weeklyHours - availableSessions.length,
+        completed_sessions: completedSessions.length,
       }),
       {
         status: 200,

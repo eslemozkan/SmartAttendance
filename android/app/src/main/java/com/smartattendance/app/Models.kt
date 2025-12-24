@@ -58,6 +58,16 @@ data class StudentWeekAttendance(
     @Json(name = "week_number") val weekNumber: Int,
     @Json(name = "qr_created_at") val qrCreatedAt: String?,
     @Json(name = "has_attendance") val hasAttendance: Boolean,
+    @Json(name = "attendance_time") val attendanceTime: String?,
+    @Json(name = "total_sessions") val totalSessions: Int = 0, // Bu hafta için toplam session sayısı
+    @Json(name = "attended_sessions") val attendedSessions: List<Int> = emptyList(), // Katıldığı session numaraları
+    @Json(name = "weekly_hours") val weeklyHours: Int = 0 // Dersin haftalık saati
+)
+
+@JsonClass(generateAdapter = true)
+data class StudentSessionAttendance(
+    @Json(name = "session_number") val sessionNumber: Int,
+    @Json(name = "has_attendance") val hasAttendance: Boolean,
     @Json(name = "attendance_time") val attendanceTime: String?
 )
 
@@ -77,6 +87,7 @@ data class GetWeeklySessionsResponse(
     @Json(name = "week_number") val weekNumber: Int,
     @Json(name = "weekly_hours") val weeklyHours: Int,
     @Json(name = "available_sessions") val availableSessions: List<WeeklySession>,
+    @Json(name = "all_sessions") val allSessions: List<WeeklySession>? = null, // Tüm session'lar (tamamlanmış + tamamlanmamış)
     @Json(name = "total_sessions") val totalSessions: Int,
     @Json(name = "completed_sessions") val completedSessions: Int
 )

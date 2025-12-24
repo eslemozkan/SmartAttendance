@@ -84,10 +84,6 @@
         "source": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-main-47:\\drawable\\spinner_academic.xml"
     },
     {
-        "merged": "com.smartattendance.app-debug-45:/layout_activity_teacher.xml.flat",
-        "source": "com.smartattendance.app-main-47:/layout/activity_teacher.xml"
-    },
-    {
         "merged": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-debug-45:\\layout_activity_reset_password.xml.flat",
         "source": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-main-47:\\layout\\activity_reset_password.xml"
     },

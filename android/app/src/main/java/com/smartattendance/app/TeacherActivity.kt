@@ -158,10 +158,41 @@ class TeacherActivity : AppCompatActivity() {
             override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
                 val selectedCourse = courses[binding.spinnerCourse.selectedItemPosition]
                 if (selectedCourse.id != 4) {
+                    // Önce hafta için session durumunu göster, sonra oturumları yükle
+                    showWeekSessionStatus(selectedCourse.id.toLong(), weeks[position].id, selectedCourse.weeklyHours)
                     loadWeeklySessions(selectedCourse.id.toLong(), weeks[position].id)
                 }
             }
             override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+        }
+    }
+    
+    private fun showWeekSessionStatus(courseId: Long, weekNumber: Int, weeklyHours: Int) {
+        lifecycleScope.launch {
+            try {
+                val response = withContext(Dispatchers.IO) {
+                    apiService.getWeeklySessions(courseId, weekNumber)
+                }
+                
+                runOnUiThread {
+                    if (response != null) {
+                        val totalSessions = response.totalSessions
+                        val completedSessions = response.completedSessions
+                        val availableSessions = response.availableSessions.size
+                        
+                        val message = if (completedSessions > 0) {
+                            "Hafta $weekNumber: $completedSessions/$totalSessions oturum için yoklama alınmış, $availableSessions oturum seçilebilir."
+                        } else {
+                            "Hafta $weekNumber: Henüz yoklama alınmamış. $totalSessions oturum seçilebilir."
+                        }
+                        
+                        // Toast yerine daha görünür bir mesaj göster
+                        binding.tvSessionsInfo.text = message
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("TeacherActivity", "Error loading week session status: ${e.message}", e)
+            }
         }
     }
     
@@ -298,28 +329,32 @@ class TeacherActivity : AppCompatActivity() {
                     }
                     binding.tvSessionsInfo.text = "Seçili hafta için ${response.totalSessions} oturum var$completedText. Lütfen QR kod için oturum seçin:"
                     
+                    // Tüm session'ları göster (tamamlanmış + tamamlanmamış)
+                    val allSessionsToShow = response.allSessions ?: response.availableSessions
+                    
                     // Checkbox'ları oluştur
-                    response.availableSessions.forEach { session ->
+                    allSessionsToShow.forEach { session ->
                         val checkBox = android.widget.CheckBox(this@TeacherActivity).apply {
                             text = "${session.sessionNumber}. Oturum"
                             if (session.isCompleted) {
-                                text = "${session.sessionNumber}. Oturum (Tamamlandı)"
+                                text = "${session.sessionNumber}. Oturum (Tamamlandı - Seçilemez)"
                                 isEnabled = false
+                                isChecked = false
                                 setTextColor(android.graphics.Color.GRAY)
                             } else {
                                 setTextColor(ContextCompat.getColor(this@TeacherActivity, android.R.color.black))
-                            }
-                            tag = session.sessionNumber
-                            setOnCheckedChangeListener { _, isChecked ->
-                                val sessionNum = tag as Int
-                                if (isChecked) {
-                                    if (!selectedSessions.contains(sessionNum)) {
-                                        selectedSessions.add(sessionNum)
+                                tag = session.sessionNumber
+                                setOnCheckedChangeListener { _, isChecked ->
+                                    val sessionNum = tag as Int
+                                    if (isChecked) {
+                                        if (!selectedSessions.contains(sessionNum)) {
+                                            selectedSessions.add(sessionNum)
+                                        }
+                                    } else {
+                                        selectedSessions.remove(sessionNum)
                                     }
-                                } else {
-                                    selectedSessions.remove(sessionNum)
+                                    updateGenerateQRButtonState()
                                 }
-                                updateGenerateQRButtonState()
                             }
                         }
                         binding.llSessionsContainer.addView(checkBox)

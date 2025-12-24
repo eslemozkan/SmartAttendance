@@ -82,9 +82,24 @@ class StudentAttendanceAdapter : RecyclerView.Adapter<StudentAttendanceAdapter.C
             val weekDetails = course.weeks.map { week ->
                 val status = if (week.hasAttendance) {
                     val time = week.attendanceTime?.let { formatDateTime(it) } ?: ""
-                    "Hafta ${week.weekNumber}: ✅ VAR $time"
+                    // Session bazlı bilgi göster
+                    if (week.totalSessions > 0) {
+                        val sessionInfo = if (week.attendedSessions.isNotEmpty()) {
+                            " (${week.attendedSessions.size}/${week.totalSessions} oturum: ${week.attendedSessions.joinToString(", ")})"
+                        } else {
+                            " (0/${week.totalSessions} oturum)"
+                        }
+                        "Hafta ${week.weekNumber}: ✅ VAR$sessionInfo $time"
+                    } else {
+                        "Hafta ${week.weekNumber}: ✅ VAR $time"
+                    }
                 } else {
-                    "Hafta ${week.weekNumber}: ❌ YOK"
+                    // Session bilgisi varsa göster
+                    if (week.totalSessions > 0) {
+                        "Hafta ${week.weekNumber}: ❌ YOK (0/${week.totalSessions} oturum)"
+                    } else {
+                        "Hafta ${week.weekNumber}: ❌ YOK"
+                    }
                 }
                 status
             }

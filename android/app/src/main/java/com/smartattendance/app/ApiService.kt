@@ -933,8 +933,9 @@ class ApiService {
             
             // ÖNEMLİ: Öğrencinin gerçekten yoklama aldığı dersleri bul
             // attendances tablosundan course_id'leri çek (öğrencinin yoklama aldığı dersler)
+            // Session bazlı bilgi için session_number'ı da çekiyoruz
             android.util.Log.d("ApiService", "Step 4: Getting courses from attendances (courses student actually attended)")
-            val attendancesUrl = "$restBaseUrl/attendances?select=course_id,week_number,marked_at&student_id=eq.$studentProfileId"
+            val attendancesUrl = "$restBaseUrl/attendances?select=course_id,week_number,session_number,marked_at&student_id=eq.$studentProfileId"
             android.util.Log.d("ApiService", "Getting attendances: $attendancesUrl")
             
             val attendancesRequest = Request.Builder()
@@ -955,7 +956,8 @@ class ApiService {
             
             // attendances tablosundan course_id'leri topla
             val courseIdsFromAttendances = mutableSetOf<Long>()
-            val attendancesByCourse = mutableMapOf<Long, MutableMap<Int, String>>() // courseId -> (weekNumber -> marked_at)
+            // courseId -> weekNumber -> (marked_at, session_numbers list)
+            val attendancesByCourse = mutableMapOf<Long, MutableMap<Int, Pair<String, MutableList<Int>>>>()
             
             if (attendancesResponse.isSuccessful && !attendancesBody.isNullOrEmpty() && attendancesBody != "[]") {
                 val attendancesData = moshi.adapter(List::class.java).fromJson(attendancesBody) as? List<Map<String, Any>>
@@ -974,15 +976,22 @@ class ApiService {
                     if (courseId != null) {
                         courseIdsFromAttendances.add(courseId)
                         
-                        // week_number ve marked_at'i kaydet
+                        // week_number, session_number ve marked_at'i kaydet
                         val weekNumber = (attendance["week_number"] as? Number)?.toInt()
+                        val sessionNumber = (attendance["session_number"] as? Number)?.toInt()
                         val markedAt = attendance["marked_at"] as? String
                         
                         if (weekNumber != null && markedAt != null) {
                             if (!attendancesByCourse.containsKey(courseId)) {
                                 attendancesByCourse[courseId] = mutableMapOf()
                             }
-                            attendancesByCourse[courseId]?.put(weekNumber, markedAt)
+                            if (!attendancesByCourse[courseId]!!.containsKey(weekNumber)) {
+                                attendancesByCourse[courseId]!![weekNumber] = Pair(markedAt, mutableListOf())
+                            }
+                            // Session numarasını ekle (null değilse)
+                            if (sessionNumber != null) {
+                                attendancesByCourse[courseId]!![weekNumber]?.second?.add(sessionNumber)
+                            }
                         }
                     }
                 }
@@ -1026,6 +1035,9 @@ class ApiService {
             
             android.util.Log.d("ApiService", "Assignments response code: ${assignmentsResponse.code}")
             android.util.Log.d("ApiService", "Assignments response body: $assignmentsBody")
+            
+            // Course bilgilerini saklamak için map (courseId -> weeklyHours)
+            val courseWeeklyHoursMap = mutableMapOf<Long, Int>()
             
             if (assignmentsResponse.isSuccessful && !assignmentsBody.isNullOrEmpty() && assignmentsBody != "[]") {
                 val assignmentsData = moshi.adapter(List::class.java).fromJson(assignmentsBody) as? List<Map<String, Any>>
@@ -1076,6 +1088,7 @@ class ApiService {
                     
                     val courseCode = coursesMap["code"] as? String
                     val courseDepartmentId = coursesMap["department_id"]?.toString()
+                    val weeklyHours = (coursesMap["weekly_hours"] as? Number)?.toInt() ?: 2
                     
                     // KOD TARAFINDA FİLTRELEME: Sadece öğrencinin bölümüne ait dersleri göster
                     if (!courseDepartmentId.isNullOrBlank() && courseDepartmentId != "null" && courseDepartmentId != departmentId) {
@@ -1083,7 +1096,8 @@ class ApiService {
                         return@forEachIndexed
                     }
                     
-                    android.util.Log.d("ApiService", "Class course: id=$courseId, name=$courseName, code=$courseCode, department_id=$courseDepartmentId")
+                    android.util.Log.d("ApiService", "Class course: id=$courseId, name=$courseName, code=$courseCode, department_id=$courseDepartmentId, weekly_hours=$weeklyHours")
+                    courseWeeklyHoursMap[courseId] = weeklyHours
                     result.add(StudentCourseWithWeeks(
                         courseId = courseId,
                         courseName = courseName,
@@ -1145,35 +1159,95 @@ class ApiService {
                 }
             }
             
+            // Step 6: Her ders için course_weekly_sessions tablosundan session bilgilerini çek
+            android.util.Log.d("ApiService", "Step 6: Fetching course_weekly_sessions for session info")
+            val sessionsCourseIdsStr = courseIds.joinToString(",")
+            val sessionsUrl = "$restBaseUrl/course_weekly_sessions?select=course_id,week_number,session_number&course_id=in.($sessionsCourseIdsStr)&order=course_id,week_number,session_number.asc"
+            android.util.Log.d("ApiService", "Getting course_weekly_sessions: $sessionsUrl")
+            
+            val sessionsRequest = Request.Builder()
+                .url(sessionsUrl)
+                .get()
+                .addHeader("apikey", anonKey)
+                .addHeader("Authorization", "Bearer $anonKey")
+                .addHeader("Content-Type", "application/json")
+                .build()
+            
+            val sessionsResponse = withContext(Dispatchers.IO) {
+                client.newCall(sessionsRequest).execute()
+            }
+            val sessionsBody = sessionsResponse.body?.string()
+            
+            android.util.Log.d("ApiService", "Sessions response code: ${sessionsResponse.code}")
+            
+            // course_weekly_sessions'ı courseId -> weekNumber -> session_numbers listesi olarak grupla
+            val sessionsByCourseAndWeek = mutableMapOf<Long, MutableMap<Int, MutableList<Int>>>()
+            
+            if (sessionsResponse.isSuccessful && !sessionsBody.isNullOrEmpty() && sessionsBody != "[]") {
+                val sessionsData = moshi.adapter(List::class.java).fromJson(sessionsBody) as? List<Map<String, Any>>
+                android.util.Log.d("ApiService", "Found ${sessionsData?.size ?: 0} session records")
+                
+                sessionsData?.forEach { session ->
+                    val courseId = (session["course_id"] as? Number)?.toLong() ?: return@forEach
+                    val weekNumber = (session["week_number"] as? Number)?.toInt() ?: return@forEach
+                    val sessionNumber = (session["session_number"] as? Number)?.toInt() ?: return@forEach
+                    
+                    if (!sessionsByCourseAndWeek.containsKey(courseId)) {
+                        sessionsByCourseAndWeek[courseId] = mutableMapOf()
+                    }
+                    if (!sessionsByCourseAndWeek[courseId]!!.containsKey(weekNumber)) {
+                        sessionsByCourseAndWeek[courseId]!![weekNumber] = mutableListOf()
+                    }
+                    sessionsByCourseAndWeek[courseId]!![weekNumber]!!.add(sessionNumber)
+                }
+            }
+            
             // Her ders için haftaları oluştur
             // attendancesByCourse zaten attendances'ten geldi (yukarıda oluşturuldu)
-            android.util.Log.d("ApiService", "Step 6: Building week attendance data")
+            android.util.Log.d("ApiService", "Step 7: Building week attendance data with session info")
             result.forEach { course ->
                 val weeks = mutableListOf<StudentWeekAttendance>()
                 val qrCodes = qrCodesByCourse[course.courseId] ?: emptyList()
                 val attendances = attendancesByCourse[course.courseId] ?: emptyMap()
+                val weeklyHours = courseWeeklyHoursMap[course.courseId] ?: 2
+                val sessionsForCourse = sessionsByCourseAndWeek[course.courseId] ?: emptyMap()
                 
                 // Eğer QR kodları varsa, onları kullan
                 if (qrCodes.isNotEmpty()) {
                     qrCodes.forEach { (weekNumber, qrCreatedAt) ->
-                        val hasAttendance = attendances.containsKey(weekNumber)
-                        val attendanceTime = attendances[weekNumber]
+                        val attendanceInfo = attendances[weekNumber]
+                        val hasAttendance = attendanceInfo != null
+                        val attendanceTime = attendanceInfo?.first
+                        val attendedSessions = attendanceInfo?.second?.distinct()?.sorted() ?: emptyList()
+                        
+                        // Bu hafta için toplam session sayısını hesapla
+                        val totalSessions = sessionsForCourse[weekNumber]?.size ?: weeklyHours
                         
                         weeks.add(StudentWeekAttendance(
                             weekNumber = weekNumber,
                             qrCreatedAt = qrCreatedAt,
                             hasAttendance = hasAttendance,
-                            attendanceTime = attendanceTime
+                            attendanceTime = attendanceTime,
+                            totalSessions = totalSessions,
+                            attendedSessions = attendedSessions,
+                            weeklyHours = weeklyHours
                         ))
                     }
                 } else {
                     // QR kodları yoksa, sadece attendance kayıtlarını göster
-                    attendances.forEach { (weekNumber, attendanceTime) ->
+                    attendances.forEach { (weekNumber, attendanceInfo) ->
+                        val attendanceTime = attendanceInfo.first
+                        val attendedSessions = attendanceInfo.second.distinct().sorted()
+                        val totalSessions = sessionsForCourse[weekNumber]?.size ?: weeklyHours
+                        
                         weeks.add(StudentWeekAttendance(
                             weekNumber = weekNumber,
                             qrCreatedAt = null,
                             hasAttendance = true,
-                            attendanceTime = attendanceTime
+                            attendanceTime = attendanceTime,
+                            totalSessions = totalSessions,
+                            attendedSessions = attendedSessions,
+                            weeklyHours = weeklyHours
                         ))
                     }
                 }
