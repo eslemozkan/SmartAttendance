@@ -85,7 +85,25 @@ class AttendanceAdapter : RecyclerView.Adapter<AttendanceAdapter.AttendanceViewH
                     try { record.attendanceTime?.substring(11, 16) ?: "" } catch (_: Exception) { record.attendanceTime ?: "" }
                 }
                 
-                tvAttendanceTime.text = if (time.isNotBlank()) "Saat: $time" else "Yoklama var"
+                // Session bazlı bilgi göster
+                val sessionInfo = if (record.totalSessions > 0 && record.attendedSessions.isNotEmpty()) {
+                    val sessionText = if (record.attendedSessions.size == record.totalSessions) {
+                        "Tüm oturumlar (${record.attendedSessions.size}/${record.totalSessions})"
+                    } else {
+                        "Oturumlar: ${record.attendedSessions.joinToString(", ")} (${record.attendedSessions.size}/${record.totalSessions})"
+                    }
+                    if (time.isNotBlank()) {
+                        "$sessionText - Saat: $time"
+                    } else {
+                        sessionText
+                    }
+                } else if (time.isNotBlank()) {
+                    "Saat: $time"
+                } else {
+                    "Yoklama var"
+                }
+                
+                tvAttendanceTime.text = sessionInfo
                 tvAttendanceTime.visibility = android.view.View.VISIBLE
                 tvStatusBadge.text = "VAR"
                 tvStatusBadge.setBackgroundResource(R.drawable.badge_primary)
@@ -93,7 +111,12 @@ class AttendanceAdapter : RecyclerView.Adapter<AttendanceAdapter.AttendanceViewH
                 iconPerson.setColorFilter(itemView.context.getColor(R.color.academic_success))
             } else {
                 // Yoklamaya katılmayan öğrenci
-                tvAttendanceTime.text = "Yoklamaya katılmadı"
+                val noAttendanceText = if (record.totalSessions > 0) {
+                    "Yoklamaya katılmadı (0/${record.totalSessions} oturum)"
+                } else {
+                    "Yoklamaya katılmadı"
+                }
+                tvAttendanceTime.text = noAttendanceText
                 tvAttendanceTime.visibility = android.view.View.VISIBLE
                 tvStatusBadge.text = "YOK"
                 tvStatusBadge.setBackgroundResource(R.drawable.badge_error)

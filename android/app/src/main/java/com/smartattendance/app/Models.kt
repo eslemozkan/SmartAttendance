@@ -27,7 +27,8 @@ data class AttendanceRecord(
     val markedAt: String,
     val method: String,
     val profiles: StudentProfile?,
-    val hasAttendance: Boolean = true // Yoklamaya katıldı mı?
+    val hasAttendance: Boolean = true, // Yoklamaya katıldı mı?
+    val sessionNumber: Int? = null // Session numarası (null ise eski sistem)
 ) {
     // Legacy constructor for backward compatibility
     constructor(

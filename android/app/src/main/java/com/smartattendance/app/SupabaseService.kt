@@ -93,7 +93,7 @@ class SupabaseService {
     suspend fun getAttendanceForWeek(courseId: String, weekNumber: Int): List<AttendanceRecord>? {
         return try {
             val httpRequest = Request.Builder()
-                .url("$supabaseUrl/rest/v1/attendances?course_id=eq.$courseId&week_number=eq.$weekNumber&select=student_id,marked_at,method,profiles!attendances_student_id_fkey(full_name,email)&order=marked_at.asc")
+                .url("$supabaseUrl/rest/v1/attendances?course_id=eq.$courseId&week_number=eq.$weekNumber&select=student_id,marked_at,method,session_number,profiles!attendances_student_id_fkey(full_name,email)&order=marked_at.asc")
                 .get()
                 .addHeader("apikey", anonKey)
                 .addHeader("Authorization", "Bearer $anonKey")
@@ -125,13 +125,15 @@ class SupabaseService {
                                 email = it["email"] as? String
                             )
                         }
-                        android.util.Log.d("SupabaseService", "Parsed attendance: $studentId - ${studentProfile?.fullName}")
+                        val sessionNumber = (map["session_number"] as? Number)?.toInt()
+                        android.util.Log.d("SupabaseService", "Parsed attendance: $studentId - ${studentProfile?.fullName} - session_number=$sessionNumber")
                         AttendanceRecord(
                             studentId = studentId,
                             markedAt = map["marked_at"] as? String ?: "",
                             method = map["method"] as? String ?: "",
                             profiles = studentProfile,
-                            hasAttendance = true
+                            hasAttendance = true,
+                            sessionNumber = sessionNumber
                         )
                     } catch (e: Exception) {
                         android.util.Log.e("SupabaseService", "Error parsing attendance: ${e.message}", e)
@@ -261,5 +263,7 @@ data class StudentRecord(
     val fullName: String = profiles?.fullName ?: "",
     val hasAttendance: Boolean = false,
     val attendanceTime: String? = null,
-    val method: String? = null
+    val method: String? = null,
+    val totalSessions: Int = 0, // Bu hafta için toplam session sayısı
+    val attendedSessions: List<Int> = emptyList() // Katıldığı session numaraları
 )

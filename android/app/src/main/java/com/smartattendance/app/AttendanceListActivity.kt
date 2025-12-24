@@ -54,12 +54,13 @@ class AttendanceListActivity : AppCompatActivity() {
                     
                     val name = row.courseName ?: return@mapIndexedNotNull null
                     val code = row.courseCode ?: ""
+                    val weeklyHours = row.weeklyHours ?: 2 // API'den gelen değer veya default 2
                     
                     // courseIdLong'u String'e çevirip uuid field'ında sakla (API çağrıları için)
                     val courseIdString = courseIdLong.toString()
                     
-                    android.util.Log.d("AttendanceListActivity", "Mapped course: id=$id, courseId=$courseIdLong, name=$name, code=$code")
-                    Course(id, courseIdString, name, code, "") // courseId'yi String olarak sakla
+                    android.util.Log.d("AttendanceListActivity", "Mapped course: id=$id, courseId=$courseIdLong, name=$name, code=$code, weeklyHours=$weeklyHours")
+                    Course(id, courseIdString, name, code, "", weeklyHours) // courseId'yi String olarak sakla
                 }
                 if (mapped.isNotEmpty()) {
                     courses = mapped
@@ -174,30 +175,112 @@ class AttendanceListActivity : AppCompatActivity() {
     }
     
     private fun loadAttendanceForWeek(week: WeekWithQR) {
+        // Önce oturum seçimi yapılacak
+        val course = selectedCourse
+        if (course == null || course.uuid.isNullOrBlank()) {
+            Toast.makeText(this, "Ders ID bulunamadı", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        val courseId = course.uuid ?: ""
+        if (courseId.isBlank()) {
+            Toast.makeText(this, "Ders ID bulunamadı", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        val courseIdLong = courseId.toLongOrNull()
+        if (courseIdLong == null) {
+            Toast.makeText(this, "Ders ID geçersiz", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        // O hafta için oturumları çek ve seçim dialogu göster
         binding.progressBar.visibility = android.view.View.VISIBLE
         
         lifecycleScope.launch {
             try {
-                // Convert course.uuid (String) to Long for API call
-                val course = selectedCourse
-                if (course == null || course.uuid.isNullOrBlank()) {
-                    android.util.Log.e("AttendanceListActivity", "Missing courseId for selected course")
-                    runOnUiThread {
-                        binding.progressBar.visibility = android.view.View.GONE
-                        Toast.makeText(this@AttendanceListActivity, "Ders ID bulunamadı", Toast.LENGTH_SHORT).show()
-                    }
-                    return@launch
-                }
+                val sessionsResponse = apiService.getWeeklySessions(courseIdLong, week.week_number)
+                val allSessions = sessionsResponse?.allSessions ?: emptyList()
+                val totalSessions = sessionsResponse?.totalSessions ?: course.weeklyHours
                 
-                val courseId = course.uuid ?: ""
-                if (courseId.isBlank()) {
-                    android.util.Log.e("AttendanceListActivity", "Missing courseId for selected course")
-                    runOnUiThread {
-                        binding.progressBar.visibility = android.view.View.GONE
-                        Toast.makeText(this@AttendanceListActivity, "Ders ID bulunamadı", Toast.LENGTH_SHORT).show()
+                runOnUiThread {
+                    binding.progressBar.visibility = android.view.View.GONE
+                    
+                    if (allSessions.isEmpty() && totalSessions == 0) {
+                        Toast.makeText(this@AttendanceListActivity, "Bu hafta için oturum bulunamadı", Toast.LENGTH_SHORT).show()
+                        return@runOnUiThread
                     }
-                    return@launch
+                    
+                    // Oturum seçimi dialogu göster
+                    showSessionSelectionDialog(week, courseId, courseIdLong, allSessions, totalSessions)
                 }
+            } catch (e: Exception) {
+                android.util.Log.e("AttendanceListActivity", "Error loading sessions: ${e.message}", e)
+                runOnUiThread {
+                    binding.progressBar.visibility = android.view.View.GONE
+                    // Fallback: Tüm oturumlar için yoklama göster
+                    loadAttendanceForWeekAndSession(week, courseId, courseIdLong, null, course.weeklyHours)
+                }
+            }
+        }
+    }
+    
+    private fun showSessionSelectionDialog(
+        week: WeekWithQR,
+        courseId: String,
+        courseIdLong: Long,
+        allSessions: List<WeeklySession>,
+        totalSessions: Int
+    ) {
+        val sessionItems = mutableListOf<String>()
+        val sessionNumbers = mutableListOf<Int?>()
+        
+        // "Tüm Oturumlar" seçeneği ekle
+        sessionItems.add("Tüm Oturumlar")
+        sessionNumbers.add(null)
+        
+        // Mevcut oturumları ekle
+        if (allSessions.isNotEmpty()) {
+            allSessions.forEach { session ->
+                val sessionText = if (session.isCompleted) {
+                    "${session.sessionNumber}. Oturum (Tamamlandı)"
+                } else {
+                    "${session.sessionNumber}. Oturum"
+                }
+                sessionItems.add(sessionText)
+                sessionNumbers.add(session.sessionNumber)
+            }
+        } else {
+            // Eğer API'den gelmediyse, 1'den totalSessions'a kadar oturumları oluştur
+            for (i in 1..totalSessions) {
+                sessionItems.add("$i. Oturum")
+                sessionNumbers.add(i)
+            }
+        }
+        
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setTitle("Hafta ${week.week_number} - Oturum Seçimi")
+            .setItems(sessionItems.toTypedArray()) { _, which ->
+                val selectedSessionNumber = sessionNumbers[which]
+                loadAttendanceForWeekAndSession(week, courseId, courseIdLong, selectedSessionNumber, totalSessions)
+            }
+            .setNegativeButton("İptal", null)
+            .create()
+        
+        dialog.show()
+    }
+    
+    private fun loadAttendanceForWeekAndSession(
+        week: WeekWithQR,
+        courseId: String,
+        courseIdLong: Long,
+        selectedSessionNumber: Int?,
+        totalSessions: Int
+    ) {
+        binding.progressBar.visibility = android.view.View.VISIBLE
+        
+        lifecycleScope.launch {
+            try {
                 
                 // 1. Tüm öğrencileri çek (derse kayıtlı)
                 val allStudents = supabaseService.getAllStudentsForCourse(courseId) ?: emptyList()
@@ -207,49 +290,110 @@ class AttendanceListActivity : AppCompatActivity() {
                 }
                 
                 // 2. Yoklama kayıtlarını çek
-                val attendanceRecords = supabaseService.getAttendanceForWeek(courseId, week.week_number) ?: emptyList()
-                android.util.Log.d("AttendanceListActivity", "Found ${attendanceRecords.size} attendance records")
-                attendanceRecords.forEach { record ->
-                    android.util.Log.d("AttendanceListActivity", "Attendance: ${record.studentId} - ${record.profiles?.fullName}")
+                var attendanceRecords = supabaseService.getAttendanceForWeek(courseId, week.week_number) ?: emptyList()
+                android.util.Log.d("AttendanceListActivity", "Found ${attendanceRecords.size} attendance records (before filtering)")
+                
+                // Seçilen oturum numarasına göre filtrele
+                if (selectedSessionNumber != null) {
+                    attendanceRecords = attendanceRecords.filter { it.sessionNumber == selectedSessionNumber }
+                    android.util.Log.d("AttendanceListActivity", "Filtered to ${attendanceRecords.size} records for session $selectedSessionNumber")
+                } else {
+                    android.util.Log.d("AttendanceListActivity", "Showing all sessions (no filter)")
                 }
                 
-                // 3. Öğrencileri ve yoklama kayıtlarını birleştir
+                // 4. Öğrencileri ve yoklama kayıtlarını birleştir
                 // studentId'leri normalize et (String'e çevir, trim, lowercase) karşılaştırma için
                 fun normalizeId(id: String): String {
                     return id.trim().lowercase().replace("-", "").replace("_", "")
                 }
                 
-                // Aynı öğrencinin birden fazla yoklama kaydını önlemek için ilk kaydı al
-                val attendanceMapById = mutableMapOf<String, AttendanceRecord>()
-                val attendanceMapByEmail = mutableMapOf<String, AttendanceRecord>()
+                // Öğrenci başına session bazlı yoklama kayıtlarını topla
+                val attendanceByStudent = mutableMapOf<String, MutableList<AttendanceRecord>>()
                 attendanceRecords.forEach { rec ->
                     val key = normalizeId(rec.studentId)
-                    if (!attendanceMapById.containsKey(key)) {
-                        attendanceMapById[key] = rec
-                    } else {
-                        android.util.Log.w("AttendanceListActivity", "Duplicate attendance for studentId=$key, ignoring extra record")
+                    if (!attendanceByStudent.containsKey(key)) {
+                        attendanceByStudent[key] = mutableListOf()
                     }
+                    attendanceByStudent[key]?.add(rec)
+                }
+                
+                // Email bazlı da topla (fallback için)
+                val attendanceByEmail = mutableMapOf<String, MutableList<AttendanceRecord>>()
+                attendanceRecords.forEach { rec ->
                     val emailKey = rec.profiles?.email?.trim()?.lowercase()
-                    if (!emailKey.isNullOrBlank() && !attendanceMapByEmail.containsKey(emailKey)) {
-                        attendanceMapByEmail[emailKey] = rec
+                    if (!emailKey.isNullOrBlank()) {
+                        if (!attendanceByEmail.containsKey(emailKey)) {
+                            attendanceByEmail[emailKey] = mutableListOf()
+                        }
+                        attendanceByEmail[emailKey]?.add(rec)
                     }
                 }
-                android.util.Log.d("AttendanceListActivity", "Attendance map size (id): ${attendanceMapById.size}, (email): ${attendanceMapByEmail.size}")
                 
-                // Her öğrenci için tek satır üret (katıldı/katılmadı)
+                android.util.Log.d("AttendanceListActivity", "Attendance by student: ${attendanceByStudent.size}, by email: ${attendanceByEmail.size}")
+                
+                // Her öğrenci için tek satır üret (session bazlı bilgi ile)
                 val combinedAttendance = allStudents.map { student ->
                     val normalizedId = normalizeId(student.studentId)
-                    val attendance = student.email.trim().lowercase().let { attendanceMapByEmail[it] }
-                        ?: attendanceMapById[normalizedId]
-                    val record = if (attendance != null) {
+                    val studentAttendances = student.email.trim().lowercase().let { attendanceByEmail[it] }
+                        ?: attendanceByStudent[normalizedId]
+                        ?: emptyList()
+                    
+                    // Seçilen oturum numarasına göre filtrele
+                    val filteredAttendances = if (selectedSessionNumber != null) {
+                        studentAttendances.filter { it.sessionNumber == selectedSessionNumber }
+                    } else {
+                        studentAttendances
+                    }
+                    
+                    // Katıldığı session numaralarını topla (seçilen oturum için)
+                    val attendedSessions = if (selectedSessionNumber != null) {
+                        // Belirli bir oturum seçildiyse, sadece o oturumu göster
+                        if (filteredAttendances.isNotEmpty()) {
+                            listOf(selectedSessionNumber)
+                        } else {
+                            emptyList()
+                        }
+                    } else {
+                        // Tüm oturumlar seçildiyse, tüm session numaralarını göster
+                        filteredAttendances
+                            .mapNotNull { it.sessionNumber }
+                            .distinct()
+                            .sorted()
+                    }
+                    
+                    // Eğer session_number null ise (eski sistem), 1 session sayılır
+                    val hasLegacyAttendance = filteredAttendances.any { it.sessionNumber == null }
+                    val finalAttendedSessions = if (hasLegacyAttendance && attendedSessions.isEmpty()) {
+                        if (selectedSessionNumber != null) {
+                            listOf(selectedSessionNumber) // Seçilen oturum için
+                        } else {
+                            listOf(1) // Eski sistem için 1 session sayılır
+                        }
+                    } else {
+                        attendedSessions
+                    }
+                    
+                    val hasAttendance = filteredAttendances.isNotEmpty()
+                    val firstAttendance = filteredAttendances.firstOrNull()
+                    
+                    // totalSessions: Eğer belirli bir oturum seçildiyse 1, değilse toplam session sayısı
+                    val displayTotalSessions = if (selectedSessionNumber != null) {
+                        1
+                    } else {
+                        totalSessions
+                    }
+                    
+                    val record = if (hasAttendance && firstAttendance != null) {
                         StudentRecord(
-                            studentId = student.studentId, // Öğrenci listesindeki student_id'yi kullan
+                            studentId = student.studentId,
                             email = student.email,
-                            profiles = attendance.profiles ?: student.profiles,
-                            fullName = attendance.profiles?.fullName ?: student.profiles?.fullName ?: "",
+                            profiles = firstAttendance.profiles ?: student.profiles,
+                            fullName = firstAttendance.profiles?.fullName ?: student.profiles?.fullName ?: "",
                             hasAttendance = true,
-                            attendanceTime = attendance.markedAt,
-                            method = attendance.method
+                            attendanceTime = firstAttendance.markedAt,
+                            method = firstAttendance.method,
+                            totalSessions = displayTotalSessions,
+                            attendedSessions = finalAttendedSessions
                         )
                     } else {
                         StudentRecord(
@@ -259,10 +403,12 @@ class AttendanceListActivity : AppCompatActivity() {
                             fullName = student.profiles?.fullName ?: "",
                             hasAttendance = false,
                             attendanceTime = null,
-                            method = null
+                            method = null,
+                            totalSessions = displayTotalSessions,
+                            attendedSessions = emptyList()
                         )
                     }
-                    android.util.Log.d("AttendanceListActivity", "Combined row: ${record.studentId} - ${record.fullName} - hasAttendance=${record.hasAttendance}")
+                    android.util.Log.d("AttendanceListActivity", "Combined row: ${record.studentId} - ${record.fullName} - hasAttendance=${record.hasAttendance} - sessions=${record.attendedSessions.size}/${record.totalSessions}")
                     record
                 }.sortedBy { it.fullName }
                 
@@ -292,7 +438,12 @@ class AttendanceListActivity : AppCompatActivity() {
                         android.util.Log.d("AttendanceListActivity", "Layout attendance visibility after: ${binding.layoutAttendance.visibility}")
                         android.util.Log.d("AttendanceListActivity", "RecyclerView adapter itemCount: ${attendanceAdapter.itemCount}")
                         binding.btnExportReport.visibility = android.view.View.VISIBLE
-                        binding.tvWeekTitle.text = "Hafta ${week.week_number} - ${week.created_at.substring(0, 10)}"
+                        val sessionText = if (selectedSessionNumber != null) {
+                            "Hafta ${week.week_number} - ${selectedSessionNumber}. Oturum - ${week.created_at.substring(0, 10)}"
+                        } else {
+                            "Hafta ${week.week_number} - Tüm Oturumlar - ${week.created_at.substring(0, 10)}"
+                        }
+                        binding.tvWeekTitle.text = sessionText
                         
                         // İstatistikleri güncelle
                         updateAttendanceStatistics()
