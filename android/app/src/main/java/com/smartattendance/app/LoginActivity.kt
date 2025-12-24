@@ -44,6 +44,9 @@ class LoginActivity : AppCompatActivity() {
             binding.layoutTeacherLogin.visibility = android.view.View.GONE
             binding.tvRoleTitle.text = "Öğrenci Girişi"
             binding.tvRoleSubtitle.text = "Öğrenci hesabınızla giriş yapın"
+            
+            // Aktif buton görsel geri bildirimi
+            updateButtonStates(true)
         }
 
         binding.btnTeacher.setOnClickListener {
@@ -51,6 +54,9 @@ class LoginActivity : AppCompatActivity() {
             binding.layoutTeacherLogin.visibility = android.view.View.VISIBLE
             binding.tvRoleTitle.text = "Akademik Personel Girişi"
             binding.tvRoleSubtitle.text = "Öğretmen hesabınızla giriş yapın"
+            
+            // Aktif buton görsel geri bildirimi
+            updateButtonStates(false)
         }
 
         // Student login
@@ -84,6 +90,8 @@ class LoginActivity : AppCompatActivity() {
             binding.layoutTeacherLogin.visibility = android.view.View.GONE
             binding.tvRoleTitle.text = "SmartAttendance"
             binding.tvRoleSubtitle.text = "Akademik Yoklama Sistemi"
+            // Buton durumlarını sıfırla
+            resetButtonStates()
         }
 
         binding.btnBackFromTeacher.setOnClickListener {
@@ -91,6 +99,8 @@ class LoginActivity : AppCompatActivity() {
             binding.layoutTeacherLogin.visibility = android.view.View.GONE
             binding.tvRoleTitle.text = "SmartAttendance"
             binding.tvRoleSubtitle.text = "Akademik Yoklama Sistemi"
+            // Buton durumlarını sıfırla
+            resetButtonStates()
         }
 
         // Forgot password link (Student)
@@ -115,6 +125,66 @@ class LoginActivity : AppCompatActivity() {
             intent.putExtra("prefill_role", "teacher")
             startActivity(intent)
         }
+    }
+    
+    private fun updateButtonStates(isStudentSelected: Boolean) {
+        // Öğrenci butonu
+        binding.btnStudent.background = if (isStudentSelected) {
+            resources.getDrawable(com.smartattendance.app.R.drawable.button_academic_selected, null)
+        } else {
+            resources.getDrawable(com.smartattendance.app.R.drawable.button_academic_unselected, null)
+        }
+        binding.btnStudent.setTextColor(if (isStudentSelected) {
+            android.graphics.Color.WHITE
+        } else {
+            android.graphics.Color.parseColor("#1976D2")
+        })
+        
+        // Öğretmen butonu
+        binding.btnTeacher.background = if (!isStudentSelected) {
+            resources.getDrawable(com.smartattendance.app.R.drawable.button_academic_selected, null)
+        } else {
+            resources.getDrawable(com.smartattendance.app.R.drawable.button_academic_unselected, null)
+        }
+        binding.btnTeacher.setTextColor(if (!isStudentSelected) {
+            android.graphics.Color.WHITE
+        } else {
+            android.graphics.Color.parseColor("#1976D2")
+        })
+        
+        // Animasyon ekle
+        binding.btnStudent.animate()
+            .scaleX(if (isStudentSelected) 0.95f else 1.0f)
+            .scaleY(if (isStudentSelected) 0.95f else 1.0f)
+            .setDuration(150)
+            .withEndAction {
+                binding.btnStudent.animate()
+                    .scaleX(1.0f)
+                    .scaleY(1.0f)
+                    .setDuration(150)
+                    .start()
+            }
+            .start()
+            
+        binding.btnTeacher.animate()
+            .scaleX(if (!isStudentSelected) 0.95f else 1.0f)
+            .scaleY(if (!isStudentSelected) 0.95f else 1.0f)
+            .setDuration(150)
+            .withEndAction {
+                binding.btnTeacher.animate()
+                    .scaleX(1.0f)
+                    .scaleY(1.0f)
+                    .setDuration(150)
+                    .start()
+            }
+            .start()
+    }
+    
+    private fun resetButtonStates() {
+        binding.btnStudent.background = resources.getDrawable(com.smartattendance.app.R.drawable.button_academic_unselected, null)
+        binding.btnStudent.setTextColor(android.graphics.Color.parseColor("#1976D2"))
+        binding.btnTeacher.background = resources.getDrawable(com.smartattendance.app.R.drawable.button_academic_unselected, null)
+        binding.btnTeacher.setTextColor(android.graphics.Color.parseColor("#1976D2"))
     }
     
     private fun showForgotPasswordDialog(isStudent: Boolean) {

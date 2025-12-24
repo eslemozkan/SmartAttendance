@@ -35,6 +35,8 @@ drawable bg_student_course_card
 drawable button_academic_outline
 drawable button_academic_primary
 drawable button_academic_secondary
+drawable button_academic_selected
+drawable button_academic_unselected
 drawable card_academic
 drawable circle_academic_blue
 drawable ic_academic_logo

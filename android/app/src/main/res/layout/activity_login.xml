@@ -32,12 +32,13 @@
             <!-- Title -->
             <TextView
                 android:id="@+id/tvRoleTitle"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="SmartAttendance"
                 android:textSize="28sp"
                 android:textStyle="bold"
                 android:textColor="@color/academic_primary"
+                android:gravity="center"
                 android:layout_marginBottom="8dp"/>
 
             <!-- Subtitle -->
@@ -47,7 +48,7 @@
                 android:layout_height="wrap_content"
                 android:text="Akademik Yoklama Sistemi"
                 android:textSize="16sp"
-                android:textColor="@color/academic_text_secondary"
+                android:textColor="@color/academic_text_primary"
                 android:gravity="center"/>
 
         </LinearLayout>
@@ -68,8 +69,8 @@
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:layout_marginEnd="8dp"
-                android:background="@drawable/button_academic_primary"
-                android:textColor="@android:color/white"/>
+                android:background="@drawable/button_academic_unselected"
+                android:textColor="@color/academic_primary"/>
 
             <Button
                 android:id="@+id/btnTeacher"
@@ -80,7 +81,7 @@
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:layout_marginStart="8dp"
-                android:background="@drawable/button_academic_secondary"
+                android:background="@drawable/button_academic_unselected"
                 android:textColor="@color/academic_primary"/>
 
         </LinearLayout>
@@ -110,7 +111,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 app:boxStrokeColor="@color/academic_primary"
-                app:hintTextColor="@color/academic_primary">
+                app:hintTextColor="@color/academic_text_primary">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/etStudentEmail"
@@ -118,7 +119,8 @@
                     android:layout_height="wrap_content"
                     android:hint="Öğrenci E-posta"
                     android:inputType="textEmailAddress"
-                    android:text="admin"/>
+                    android:text="admin"
+                    android:textColor="@color/academic_text_primary"/>
 
             </com.google.android.material.textfield.TextInputLayout>
 
@@ -127,7 +129,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="24dp"
                 app:boxStrokeColor="@color/academic_primary"
-                app:hintTextColor="@color/academic_primary">
+                app:hintTextColor="@color/academic_text_primary">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/etStudentPassword"
@@ -135,7 +137,8 @@
                     android:layout_height="wrap_content"
                     android:hint="Şifre"
                     android:inputType="textPassword"
-                    android:text="admin"/>
+                    android:text="admin"
+                    android:textColor="@color/academic_text_primary"/>
 
             </com.google.android.material.textfield.TextInputLayout>
 
@@ -223,7 +226,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 app:boxStrokeColor="@color/academic_primary"
-                app:hintTextColor="@color/academic_primary">
+                app:hintTextColor="@color/academic_text_primary">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/etTeacherEmail"
@@ -231,7 +234,8 @@
                     android:layout_height="wrap_content"
                     android:hint="Öğretmen E-posta"
                     android:inputType="textEmailAddress"
-                    android:text="admin"/>
+                    android:text="admin"
+                    android:textColor="@color/academic_text_primary"/>
 
             </com.google.android.material.textfield.TextInputLayout>
 
@@ -240,7 +244,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="24dp"
                 app:boxStrokeColor="@color/academic_primary"
-                app:hintTextColor="@color/academic_primary">
+                app:hintTextColor="@color/academic_text_primary">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/etTeacherPassword"
@@ -248,7 +252,8 @@
                     android:layout_height="wrap_content"
                     android:hint="Şifre"
                     android:inputType="textPassword"
-                    android:text="admin"/>
+                    android:text="admin"
+                    android:textColor="@color/academic_text_primary"/>
 
             </com.google.android.material.textfield.TextInputLayout>
 
@@ -317,7 +322,7 @@
             android:layout_height="wrap_content"
             android:text="© 2024 SmartAttendance - Akademik Yoklama Sistemi"
             android:textSize="12sp"
-            android:textColor="@color/academic_text_secondary"
+            android:textColor="@color/academic_text_primary"
             android:gravity="center"
             android:layout_marginTop="32dp"/>
 

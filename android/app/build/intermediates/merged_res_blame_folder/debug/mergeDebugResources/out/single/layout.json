@@ -24,12 +24,12 @@
         "source": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-main-47:\\layout\\activity_reset_password.xml"
     },
     {
-        "merged": "com.smartattendance.app-mergeDebugResources-44:/layout/activity_change_password.xml",
-        "source": "com.smartattendance.app-main-47:/layout/activity_change_password.xml"
-    },
-    {
         "merged": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-mergeDebugResources-44:\\layout\\activity_login.xml",
         "source": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-main-47:\\layout\\activity_login.xml"
+    },
+    {
+        "merged": "com.smartattendance.app-mergeDebugResources-44:/layout/activity_login.xml",
+        "source": "com.smartattendance.app-main-47:/layout/activity_login.xml"
     },
     {
         "merged": "C:\\Users\\elife\\.gradle\\daemon\\8.7\\com.smartattendance.app-mergeDebugResources-44:\\layout\\item_week.xml",
