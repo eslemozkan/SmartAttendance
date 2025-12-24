@@ -102,3 +102,6 @@ Eğer Supabase Dashboard'da Redirect URL'i değiştiremiyorsanız, web URL'den t
 
 
 
+
+
+

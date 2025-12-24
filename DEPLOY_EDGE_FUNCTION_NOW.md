@@ -66,3 +66,6 @@ Eski kod önce Resend'e istek gönderiyordu. Yeni kod önce Supabase'in built-in
 
 
 
+
+
+

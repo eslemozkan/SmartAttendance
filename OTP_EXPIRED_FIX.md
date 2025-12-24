@@ -42,3 +42,6 @@ Function'a error handling eklendi. URL hash'inde hata varsa kullanıcıya mesaj 
 
 
 
+
+
+

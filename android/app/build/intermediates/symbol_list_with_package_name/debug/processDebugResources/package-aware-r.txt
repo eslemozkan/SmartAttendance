@@ -3495,6 +3495,7 @@ id linear
 id listMode
 id list_item
 id llAttendanceInfo
+id llSessionsContainer
 id m3_side_sheet
 id marquee
 id masked
@@ -3762,6 +3763,7 @@ id tvForgotPassword
 id tvNoWeeks
 id tvRoleSubtitle
 id tvRoleTitle
+id tvSessionsInfo
 id tvSignupLink
 id tvStatus
 id tvTeacherForgotPassword

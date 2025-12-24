@@ -19,13 +19,15 @@ data class CreateQRRequest(
     @Json(name = "week_number") val weekNumber: Int,
     @Json(name = "expire_after_minutes") val expireAfterMinutes: Int,
     @Json(name = "teacher_latitude") val teacherLatitude: Double? = null,
-    @Json(name = "teacher_longitude") val teacherLongitude: Double? = null
+    @Json(name = "teacher_longitude") val teacherLongitude: Double? = null,
+    @Json(name = "session_numbers") val sessionNumbers: List<Int> = emptyList() // Seçilen oturum numaraları
 )
 
 @JsonClass(generateAdapter = true)
 data class CreateQRResponse(
     val id: String,
-    val qr: QRData
+    val qr: QRData,
+    @Json(name = "sessions_completed") val sessionsCompleted: Int = 1
 )
 
 @JsonClass(generateAdapter = true)
@@ -53,7 +55,10 @@ data class ValidateQRRequest(
 @JsonClass(generateAdapter = true)
 data class ValidateQRResponse(
     val ok: Boolean? = null,
-    val error: String? = null
+    val error: String? = null,
+    val message: String? = null,
+    val distance: String? = null,
+    @Json(name = "maxDistance") val maxDistance: Int? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -90,7 +95,8 @@ data class TeacherAssignedCourse(
     @Json(name = "teacher_email") val teacherEmail: String?,
     @Json(name = "course_id") val courseId: Long?, // BIGINT number (courses.id is BIGINT)
     @Json(name = "course_name") val courseName: String?,
-    @Json(name = "course_code") val courseCode: String?
+    @Json(name = "course_code") val courseCode: String?,
+    @Json(name = "weekly_hours") val weeklyHours: Int? = null // Haftalık ders saati sayısı
 )
 
 @JsonClass(generateAdapter = true)
@@ -108,6 +114,9 @@ class ApiService {
         .writeTimeout(120, TimeUnit.SECONDS)
         .retryOnConnectionFailure(true)
         .build()
+    
+    // Store last error message for display
+    var lastError: String? = null
     
     private val moshi = Moshi.Builder()
         .add(KotlinJsonAdapterFactory())
@@ -185,7 +194,7 @@ class ApiService {
             val encoded = java.net.URLEncoder.encode(email, "UTF-8")
             
             // First try the view
-            var url = "$restBaseUrl/teacher_assigned_courses?select=assignment_id,teacher_email,course_id,course_name,course_code&teacher_email=eq.$encoded"
+            var url = "$restBaseUrl/teacher_assigned_courses?select=assignment_id,teacher_email,course_id,course_name,course_code,weekly_hours&teacher_email=eq.$encoded"
             
             android.util.Log.d("ApiService", "Loading courses for teacher: $email")
             android.util.Log.d("ApiService", "Trying view URL: $url")
@@ -232,7 +241,7 @@ class ApiService {
                         android.util.Log.d("ApiService", "Found teacher_id: $teacherId")
                         
                         // Query teacher_courses with courses join
-                        url = "$restBaseUrl/teacher_courses?select=id,course_id,courses(id,name,code)&teacher_id=eq.$teacherId"
+                        url = "$restBaseUrl/teacher_courses?select=id,course_id,courses(id,name,code,weekly_hours)&teacher_id=eq.$teacherId"
                         android.util.Log.d("ApiService", "Direct table URL: $url")
                         
                         httpRequest = Request.Builder()
@@ -263,6 +272,7 @@ class ApiService {
                                 val coursesMap = tc["courses"] as? Map<String, Any>
                                 val courseName = coursesMap?.get("name") as? String
                                 val courseCode = coursesMap?.get("code") as? String
+                                val weeklyHours = (coursesMap?.get("weekly_hours") as? Number)?.toInt() ?: 2
                                 
                                 if (courseId != null && courseName != null) {
                                     TeacherAssignedCourse(
@@ -270,7 +280,8 @@ class ApiService {
                                         teacherEmail = email,
                                         courseId = courseId,
                                         courseName = courseName,
-                                        courseCode = courseCode
+                                        courseCode = courseCode,
+                                        weeklyHours = weeklyHours
                                     )
                                 } else null
                             } ?: emptyList()
@@ -479,9 +490,9 @@ class ApiService {
     
     data class ResetPasswordResult(val success: Boolean, val message: String, val resetLink: String? = null, val email: String? = null)
     
-    suspend fun createQRCode(courseId: Long, weekNumber: Int, expireAfterMinutes: Int, teacherLatitude: Double? = null, teacherLongitude: Double? = null): CreateQRResponse? {
+    suspend fun createQRCode(courseId: Long, weekNumber: Int, expireAfterMinutes: Int, teacherLatitude: Double? = null, teacherLongitude: Double? = null, sessionNumbers: List<Int> = emptyList()): CreateQRResponse? {
         return try {
-            val request = CreateQRRequest(courseId, weekNumber, expireAfterMinutes, teacherLatitude, teacherLongitude)
+            val request = CreateQRRequest(courseId, weekNumber, expireAfterMinutes, teacherLatitude, teacherLongitude, sessionNumbers)
             val json = moshi.adapter(CreateQRRequest::class.java).toJson(request)
             val url = "$functionsBaseUrl/create-qr"
             
@@ -530,6 +541,47 @@ class ApiService {
         }
     }
     
+    suspend fun getWeeklySessions(courseId: Long, weekNumber: Int): GetWeeklySessionsResponse? {
+        return try {
+            val url = "$functionsBaseUrl/get-weekly-sessions"
+            val requestBody = """{"course_id":$courseId,"week_number":$weekNumber}"""
+            
+            android.util.Log.d("ApiService", "GetWeeklySessions URL: $url")
+            android.util.Log.d("ApiService", "GetWeeklySessions Request: $requestBody")
+            
+            val httpRequest = Request.Builder()
+                .url(url)
+                .post(requestBody.toRequestBody("application/json".toMediaType()))
+                .addHeader("Content-Type", "application/json")
+                .addHeader("Authorization", "Bearer $anonKey")
+                .addHeader("apikey", anonKey)
+                .build()
+            
+            val response = withContext(Dispatchers.IO) {
+                client.newCall(httpRequest).execute()
+            }
+            
+            val body = response.body?.string()
+            android.util.Log.d("ApiService", "GetWeeklySessions Response Code: ${response.code}")
+            android.util.Log.d("ApiService", "GetWeeklySessions Response Body: $body")
+            
+            if (response.isSuccessful && body != null) {
+                val result = moshi.adapter(GetWeeklySessionsResponse::class.java).fromJson(body)
+                if (result == null) {
+                    android.util.Log.e("ApiService", "Failed to parse GetWeeklySessions response")
+                    throw RuntimeException("Failed to parse response")
+                }
+                result
+            } else {
+                android.util.Log.e("ApiService", "GetWeeklySessions HTTP Error: ${response.code} - $body")
+                throw RuntimeException("get-weekly-sessions failed ${response.code}: ${body ?: "<empty>"}")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("ApiService", "GetWeeklySessions Error: ${e.javaClass.simpleName} - ${e.message}", e)
+            throw e
+        }
+    }
+    
     suspend fun validateQRCode(qrDataString: String, studentEmail: String, studentLatitude: Double? = null, studentLongitude: Double? = null): Boolean? {
         return try {
             android.util.Log.d("ApiService", "QR Data String: $qrDataString")
@@ -540,8 +592,14 @@ class ApiService {
             val qrData = moshi.adapter(QRData::class.java).fromJson(qrDataString)
             android.util.Log.d("ApiService", "Parsed QR Data: $qrData")
             
-            // Konum kontrolü: Eğer hem hocanın hem öğrencinin konumu varsa, mesafe kontrolü yap
-            if (qrData != null && qrData.teacherLatitude != null && qrData.teacherLongitude != null 
+            if (qrData == null) {
+                android.util.Log.e("ApiService", "Failed to parse QR data")
+                return false
+            }
+            
+            // Client-side konum kontrolünü kaldırdık - API tarafında yapılıyor
+            // Sadece log için mesafe hesaplayalım
+            if (qrData.teacherLatitude != null && qrData.teacherLongitude != null 
                 && studentLatitude != null && studentLongitude != null) {
                 val distance = LocationHelper.calculateDistance(
                     qrData.teacherLatitude,
@@ -549,21 +607,12 @@ class ApiService {
                     studentLatitude,
                     studentLongitude
                 )
-                android.util.Log.d("ApiService", "Distance from teacher: ${distance}m")
-                
-                // Mesafe threshold: 30 metre (sınıf/bina içi için uygun)
-                val maxDistance = 30.0 // metre
-                if (distance > maxDistance) {
-                    android.util.Log.w("ApiService", "Student too far from teacher: ${distance}m > ${maxDistance}m")
-                    return false
-                }
-                android.util.Log.d("ApiService", "Location check passed: ${distance}m <= ${maxDistance}m")
+                android.util.Log.d("ApiService", "Distance from teacher: ${distance}m (will be checked by API)")
             } else {
-                android.util.Log.w("ApiService", "Location check skipped: teacher location=${qrData?.teacherLatitude != null && qrData?.teacherLongitude != null}, student location=${studentLatitude != null && studentLongitude != null}")
+                android.util.Log.w("ApiService", "Location check will be skipped by API: teacher location=${qrData.teacherLatitude != null && qrData.teacherLongitude != null}, student location=${studentLatitude != null && studentLongitude != null}")
             }
             
-            if (qrData != null) {
-                val request = ValidateQRRequest(
+            val request = ValidateQRRequest(
                     courseId = qrData.courseId,
                     weekNumber = qrData.weekNumber,
                     createdAt = qrData.createdAt,
@@ -597,13 +646,24 @@ class ApiService {
                     android.util.Log.d("ApiService", "Parsed Result: $result")
                     result?.ok == true
                 } else {
-                    android.util.Log.e("ApiService", "HTTP Error: ${response.code} - $responseBody")
+                    // Try to parse error response
+                    val errorResult = try {
+                        android.util.Log.d("ApiService", "Trying to parse error response: $responseBody")
+                        val parsed = moshi.adapter(ValidateQRResponse::class.java).fromJson(responseBody)
+                        android.util.Log.d("ApiService", "Parsed error result: ok=${parsed?.ok}, error=${parsed?.error}, message=${parsed?.message}")
+                        parsed
+                    } catch (e: Exception) {
+                        android.util.Log.e("ApiService", "Failed to parse error response: ${e.message}", e)
+                        null
+                    }
+                    
+                    val errorMessage = errorResult?.message ?: errorResult?.error ?: "Bilinmeyen hata"
+                    android.util.Log.e("ApiService", "HTTP Error: ${response.code} - $errorMessage")
+                    
+                    // Store error message for display
+                    lastError = errorMessage
                     false
                 }
-            } else {
-                android.util.Log.e("ApiService", "Failed to parse QR data")
-                false
-            }
         } catch (e: Exception) {
             android.util.Log.e("ApiService", "Exception in validateQRCode: ${e.message}", e)
             false

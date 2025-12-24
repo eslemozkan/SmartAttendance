@@ -123,3 +123,6 @@ Eğer SMTP ayarlarında Gmail kullanıyorsan:
 
 
 
+
+
+

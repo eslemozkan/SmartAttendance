@@ -80,3 +80,6 @@ Supabase, güvenlik nedeniyle sadece **Redirect URLs** listesinde kayıtlı URL'
 
 
 
+
+
+

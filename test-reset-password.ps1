@@ -70,3 +70,6 @@ Write-Host "Or check Dashboard > Edge Functions > reset-password > Logs" -Foregr
 
 
 
+
+
+

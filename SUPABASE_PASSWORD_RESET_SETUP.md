@@ -133,3 +133,6 @@ Artık Supabase'in built-in password reset mekanizması kullanılıyor. Edge fun
 
 
 
+
+
+

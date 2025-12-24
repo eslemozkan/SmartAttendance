@@ -3494,6 +3494,7 @@ int id linear 0x7f08011f
 int id listMode 0x7f080120
 int id list_item 0x7f080121
 int id llAttendanceInfo 0x7f080122
+int id llSessionsContainer 0x7f080262
 int id m3_side_sheet 0x7f080123
 int id marquee 0x7f080124
 int id masked 0x7f080125
@@ -3761,6 +3762,7 @@ int id tvForgotPassword 0x7f08022a
 int id tvNoWeeks 0x7f08022b
 int id tvRoleSubtitle 0x7f08022c
 int id tvRoleTitle 0x7f08022d
+int id tvSessionsInfo 0x7f080263
 int id tvSignupLink 0x7f08022e
 int id tvStatus 0x7f08022f
 int id tvTeacherForgotPassword 0x7f080230

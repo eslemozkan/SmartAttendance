@@ -7,7 +7,7 @@ import { ArrowLeft, Plus, Check, X, Edit, Trash2, Users } from 'lucide-react'
 type Department = { id: string; name: string; code: string }
 type Teacher = { id: string; full_name: string; email: string; department_id: string }
 // courses.id can be bigint in DB, allow number|string
-type Course = { id: number | string; name: string; code: string | null; department_id: string }
+type Course = { id: number | string; name: string; code: string | null; department_id: string; weekly_hours?: number }
 type TeacherCourse = { id: string; teacher_id: string; course_id: string; courses: { name: string; code: string | null } }
 type Class = { id: string; name: string; department_id: string; academic_year: string; grade_level?: number }
 type CourseClassAssignment = {
@@ -28,7 +28,7 @@ export default function CoursesManagementPage() {
   const [loading, setLoading] = useState(true)
   const [creatingCourse, setCreatingCourse] = useState<number | null>(null) // Hangi sınıf seviyesine ders ekleniyor
   const [editingCourse, setEditingCourse] = useState<Course | null>(null)
-  const [newCourse, setNewCourse] = useState({ name: '', code: '', gradeLevel: null as number | null })
+  const [newCourse, setNewCourse] = useState({ name: '', code: '', gradeLevel: null as number | null, weeklyHours: 2 })
   
   // Sınıf atamaları için state'ler
   const [academicYear, setAcademicYear] = useState('2024-2025')
@@ -114,7 +114,7 @@ export default function CoursesManagementPage() {
         .order('full_name'),
       supabase
         .from('courses')
-        .select('id, name, code, department_id')
+        .select('id, name, code, department_id, weekly_hours')
         .eq('department_id', departmentId)
         .order('code'),
     ])
@@ -211,7 +211,12 @@ export default function CoursesManagementPage() {
     const { data: courseData, error: courseError } = await supabase
       .from('courses')
       .insert([
-        { name: newCourse.name.trim(), code: newCourse.code.trim() || null, department_id: departmentId },
+        { 
+          name: newCourse.name.trim(), 
+          code: newCourse.code.trim() || null, 
+          department_id: departmentId,
+          weekly_hours: newCourse.weeklyHours || 2
+        },
       ])
       .select()
       .single()
@@ -227,17 +232,7 @@ export default function CoursesManagementPage() {
         // Önce sınıfları yükle (her zaman yeniden yükle, state güncel olmayabilir)
         await loadClassesAndAssignments(departmentId)
         
-        // State güncellenene kadar kısa bir bekleme
-        await new Promise(resolve => setTimeout(resolve, 100))
-        
-        // Şimdi güncel allClasses state'ini kullan
-        const currentClasses = allClasses.length > 0 ? allClasses : []
-        
         // EN BASİT YÖNTEM: Sadece seviye ve bölüm ile filtrele, akademik yıl filtresini kaldır
-        console.log('🔍 Sınıf yükleme - EN BASİT YÖNTEM')
-        console.log('  - Bölüm ID:', departmentId)
-        console.log('  - Seçilen seviye:', gradeLevel)
-        
         // Tüm sınıfları çek (akademik yıl filtresi YOK)
         const { data: allDeptClasses, error: classesError } = await supabase
           .from('classes')
@@ -247,12 +242,9 @@ export default function CoursesManagementPage() {
           .order('name')
         
         if (classesError) {
-          console.error('❌ Sınıf sorgu hatası:', classesError)
           alert(`Sınıflar yüklenirken hata: ${classesError.message}`)
           return
         }
-        
-        console.log('📋 Veritabanından çekilen sınıflar:', allDeptClasses?.length || 0, 'adet')
         
         if (!allDeptClasses || allDeptClasses.length === 0) {
           alert(`Bu bölümde hiç sınıf bulunamadı. Önce sınıfları oluşturun.`)
@@ -272,7 +264,6 @@ export default function CoursesManagementPage() {
           return { ...cls, grade_level: level }
         })
         
-        console.log('✅ İşlenmiş sınıflar (seviye bazında):')
         const classesByLevel = classesWithLevel.reduce((acc, cls) => {
           const level = cls.grade_level || 0
           if (!acc[level]) acc[level] = []
@@ -280,25 +271,13 @@ export default function CoursesManagementPage() {
           return acc
         }, {} as Record<number, Class[]>)
         
-        Object.keys(classesByLevel).forEach(level => {
-          console.log(`  - ${level}. seviye: ${classesByLevel[parseInt(level)].length} sınıf`, 
-            classesByLevel[parseInt(level)].map(c => c.name))
-        })
-        
         // SADECE seviye ve bölüm ile filtrele (akademik yıl YOK)
         const targetClasses = classesWithLevel.filter(cls => {
           const level = cls.grade_level
           const levelMatch = level === gradeLevel
           const departmentMatch = String(cls.department_id) === String(departmentId)
-          
-          if (levelMatch && departmentMatch) {
-            console.log(`✅ Eşleşen sınıf: ${cls.name} (seviye: ${level}, akademik yıl: ${cls.academic_year})`)
-          }
-          
           return levelMatch && departmentMatch
         })
-        
-        console.log(`✅ Toplam ${targetClasses.length} sınıf bulundu (seviye: ${gradeLevel}, bölüm: ${departmentId})`)
         
         if (targetClasses.length === 0) {
           alert(`${gradeLevel}. sınıf seviyesi için bu bölümde sınıf bulunamadı. Mevcut seviyeler: ${Object.keys(classesByLevel).join(', ')}`)
@@ -308,7 +287,6 @@ export default function CoursesManagementPage() {
         // Akademik yıl uyarısı (ama engelleme)
         const academicYears = [...new Set(targetClasses.map(c => c.academic_year))]
         if (academicYears.length > 1 || (academicYears.length === 1 && academicYears[0] !== academicYear)) {
-          console.warn(`⚠️ Akademik yıl uyuşmazlığı: Seçili "${academicYear}", bulunan sınıflar: ${academicYears.join(', ')}`)
           // Uyarı ver ama devam et
         }
         
@@ -329,15 +307,6 @@ export default function CoursesManagementPage() {
             semester: semester
           }))
           
-          console.log('🔍 Atama öncesi kontrol:')
-          console.log('  - courseData.id:', courseData.id, 'tip:', typeof courseData.id)
-          console.log('  - courseIdForAssignment:', courseIdForAssignment)
-          console.log('  - finalTargetClasses sayısı:', finalTargetClasses.length)
-          console.log('  - assignments:', assignments)
-
-          console.log('Atama yapılacak sınıflar:', finalTargetClasses)
-          console.log('Atama verileri:', assignments)
-
           const { error: assignError, data: insertedAssignments } = await supabase
             .from('course_class_assignments')
             .insert(assignments)
@@ -347,11 +316,8 @@ export default function CoursesManagementPage() {
             `)
 
           if (assignError) {
-            console.error('Sınıf atama hatası:', assignError)
-            console.error('Atama verileri:', assignments)
             alert(`Ders eklendi ancak sınıf atamaları yapılamadı: ${assignError.message}`)
           } else {
-            console.log('✅ Atamalar başarıyla eklendi:', insertedAssignments)
             alert(`Ders başarıyla eklendi ve ${finalTargetClasses.length} sınıfa atandı`)
             
             // courseAssignments state'ini manuel olarak güncelle
@@ -359,24 +325,17 @@ export default function CoursesManagementPage() {
               const courseId = courseData.id.toString()
               setCourseAssignments(prev => {
                 const existing = prev[courseId] || []
-                const updated = {
+                return {
                   ...prev,
                   [courseId]: [...existing, ...insertedAssignments]
                 }
-                console.log('✅ courseAssignments güncellendi:', updated)
-                return updated
               })
-            } else {
-              console.warn('⚠️ insertedAssignments boş veya null')
             }
           }
         } else {
-          console.error('❌ Sınıf bulunamadı - Seviye:', gradeLevel)
-          console.error('Mevcut sınıflar:', classesToUse)
           alert(`Ders eklendi ancak ${gradeLevel}. sınıf seviyesi için bu akademik yılda (${academicYear}) sınıf bulunamadı. Önce sınıfları oluşturun.`)
         }
       } catch (error: any) {
-        console.error('Sınıf atama hatası:', error)
         alert('Ders eklendi ancak sınıf atamaları yapılamadı')
       }
     }
@@ -397,20 +356,10 @@ export default function CoursesManagementPage() {
       const updatedCourses = [...courses, newCourseItem]
       setCourses(updatedCourses)
       
-      // Atamaları yeniden yükle (yeni ders dahil) - await ile bekle
+      // Atamaları yeniden yükle (yeni ders dahil)
       if (selectedDeptId) {
-        // Önce tüm dersleri yeniden yükle
+        // Tüm dersleri yeniden yükle ve atamaları güncelle
         await loadTeachersAndCourses(departmentId)
-        
-        // Kısa bir bekleme (state güncellenene kadar)
-        await new Promise(resolve => setTimeout(resolve, 300))
-        
-        // Sonra atamaları yükle (courses state'i güncellenmiş olacak)
-        // updatedCourses ile çağır ki yeni ders dahil olsun
-        await loadClassesAndAssignments(selectedDeptId, updatedCourses)
-        
-        // Bir kez daha yükle (garanti için)
-        await new Promise(resolve => setTimeout(resolve, 200))
         await loadClassesAndAssignments(selectedDeptId)
       }
     } else {
@@ -423,13 +372,17 @@ export default function CoursesManagementPage() {
     if (!newCourse.name.trim()) return
     const { error } = await supabase
       .from('courses')
-      .update({ name: newCourse.name.trim(), code: newCourse.code.trim() || null })
+      .update({ 
+        name: newCourse.name.trim(), 
+        code: newCourse.code.trim() || null,
+        weekly_hours: newCourse.weeklyHours || 2
+      })
       .eq('id', courseId)
     if (error) {
       alert('Ders güncellenemedi: ' + error.message)
       return
     }
-    setNewCourse({ name: '', code: '' })
+    setNewCourse({ name: '', code: '', gradeLevel: null, weeklyHours: 2 })
     setEditingCourse(null)
     setCreatingCourse(false)
     await loadTeachersAndCourses(departmentId)
@@ -437,13 +390,17 @@ export default function CoursesManagementPage() {
 
   function handleEdit(course: Course) {
     setEditingCourse(course)
-    setNewCourse({ name: course.name, code: course.code || '' })
+    setNewCourse({ 
+      name: course.name, 
+      code: course.code || '',
+      weeklyHours: course.weekly_hours || 2
+    })
     setCreatingCourse(false)
   }
 
   function handleCancelEdit() {
     setEditingCourse(null)
-    setNewCourse({ name: '', code: '', gradeLevel: null })
+    setNewCourse({ name: '', code: '', gradeLevel: null, weeklyHours: 2 })
     setCreatingCourse(null)
   }
 
@@ -715,8 +672,8 @@ export default function CoursesManagementPage() {
             )}
             {selectedDeptId && editingCourse && (
               <div className="flex-1">
-                <div className="flex items-end space-x-2">
-                  <div className="flex-1">
+                <div className="flex items-end space-x-2 flex-wrap gap-2">
+                  <div className="flex-1 min-w-[200px]">
                     <label className="block text-sm font-medium text-academic-text-primary mb-1">Ders Adı</label>
                     <input
                       className="input-field"
@@ -725,13 +682,25 @@ export default function CoursesManagementPage() {
                       placeholder="Veritabanı I"
                     />
                   </div>
-                  <div>
+                  <div className="min-w-[120px]">
                     <label className="block text-sm font-medium text-academic-text-primary mb-1">Kod</label>
                     <input
                       className="input-field"
                       value={newCourse.code}
                       onChange={e => setNewCourse({ ...newCourse, code: e.target.value })}
                       placeholder="CSE101"
+                    />
+                  </div>
+                  <div className="min-w-[120px]">
+                    <label className="block text-sm font-medium text-academic-text-primary mb-1">Haftalık Saat</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="10"
+                      className="input-field"
+                      value={newCourse.weeklyHours}
+                      onChange={e => setNewCourse({ ...newCourse, weeklyHours: parseInt(e.target.value) || 2 })}
+                      placeholder="2"
                     />
                   </div>
                   <button 
@@ -754,7 +723,6 @@ export default function CoursesManagementPage() {
             {/* Sınıf Seviyesi Bazlı Ders Ekleme */}
             {(() => {
               const gradeLevels = getGradeLevels()
-              console.log('Grade Levels:', gradeLevels, 'All Classes:', allClasses.length)
               return (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   {gradeLevels.map(level => {
@@ -818,6 +786,23 @@ export default function CoursesManagementPage() {
                             onChange={e => setNewCourse({ ...newCourse, code: e.target.value })}
                             placeholder="Ders Kodu"
                           />
+                          <div>
+                            <label className="block text-xs font-medium text-academic-text-secondary mb-1">
+                              Haftalık Saat
+                            </label>
+                            <input
+                              type="number"
+                              min="1"
+                              max="10"
+                              className="input-field text-sm"
+                              value={newCourse.weeklyHours}
+                              onChange={e => setNewCourse({ ...newCourse, weeklyHours: parseInt(e.target.value) || 2 })}
+                              placeholder="2"
+                            />
+                            <p className="text-xs text-academic-text-secondary mt-1">
+                              Bu ders haftada kaç saat işleniyor? (1-10 arası)
+                            </p>
+                          </div>
                           <div className="flex space-x-2">
                             <button
                               onClick={() => addCourse(selectedDeptId, level)}

@@ -22,3 +22,6 @@ COMMENT ON COLUMN public.classes.grade_level IS 'Sınıf seviyesi (1, 2, 3, 4) -
 
 
 
+
+
+

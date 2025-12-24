@@ -216,6 +216,7 @@ class StudentActivity : AppCompatActivity() {
                 
                 // Girişte gelen email'i kullan (server email'den profile id çözer)
                 val email = intent.getStringExtra("email") ?: ""
+                apiService.lastError = null // Reset error
                 val ok = apiService.validateQRCode(qrData, email, studentLatitude, studentLongitude) == true
 
                 runOnUiThread {
@@ -226,8 +227,9 @@ class StudentActivity : AppCompatActivity() {
                         binding.btnStartScan.text = "Yoklama Alındı"
                         Toast.makeText(this@StudentActivity, "Yoklama başarıyla alındı!", Toast.LENGTH_LONG).show()
                     } else {
-                        binding.tvStatus.text = "QR kod geçersiz, süresi dolmuş veya konum uygun değil"
-                        Toast.makeText(this@StudentActivity, "QR kod geçersiz veya konum kontrolü başarısız", Toast.LENGTH_SHORT).show()
+                        val errorMsg = apiService.lastError ?: "QR kod geçersiz, süresi dolmuş veya konum uygun değil"
+                        binding.tvStatus.text = errorMsg
+                        Toast.makeText(this@StudentActivity, errorMsg, Toast.LENGTH_LONG).show()
                     }
                 }
             } catch (e: Exception) {

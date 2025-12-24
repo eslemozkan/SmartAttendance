@@ -107,12 +107,29 @@ Deno.serve(async (req) => {
     // Check QR exists and is active, and verify location if available
     let teacherLatitude: number | null = null;
     let teacherLongitude: number | null = null;
+    let qrCodeId: string | null = null;
     try {
-      const qrUrl = `${supabaseUrl}/rest/v1/qr_codes?select=created_at,expire_after_minutes,teacher_latitude,teacher_longitude,is_active&course_id=eq.${course_id}&week_number=eq.${week_number}&is_active=eq.true`;
+      const qrUrl = `${supabaseUrl}/rest/v1/qr_codes?select=id,created_at,expire_after_minutes,teacher_latitude,teacher_longitude,is_active&course_id=eq.${course_id}&week_number=eq.${week_number}&is_active=eq.true&order=created_at.desc&limit=1`;
       const qrResp = await fetch(qrUrl, { headers: { apikey: apiKey, Authorization: `Bearer ${apiKey}`, Accept: "application/json" } });
       const qrData = await qrResp.json();
       if (Array.isArray(qrData) && qrData.length > 0) {
         const qr = qrData[0];
+        
+        // Check if QR code is expired
+        const createdAt = new Date(qr.created_at);
+        const expireAfterMinutes = qr.expire_after_minutes || 15;
+        const expireTime = new Date(createdAt.getTime() + expireAfterMinutes * 60 * 1000);
+        const now = new Date();
+        
+        if (now > expireTime) {
+          console.info(`QR code expired: created at ${createdAt.toISOString()}, expires at ${expireTime.toISOString()}, now is ${now.toISOString()}`);
+          return new Response(JSON.stringify({ ok: false, error: "qr_expired", message: "Bu yoklamanın süresi dolmuş" }), {
+            status: 410,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          });
+        }
+        
+        qrCodeId = qr.id;
         teacherLatitude = qr.teacher_latitude;
         teacherLongitude = qr.teacher_longitude;
         
@@ -132,7 +149,7 @@ Deno.serve(async (req) => {
           const maxDistance = 30; // 30 meters
           if (distance > maxDistance) {
             console.info(`Location check failed: student is ${distance.toFixed(2)}m away (max: ${maxDistance}m)`);
-            return new Response(JSON.stringify({ ok: false, error: "location_too_far", distance: distance.toFixed(2), maxDistance }), {
+            return new Response(JSON.stringify({ ok: false, error: "location_too_far", distance: distance.toFixed(2), maxDistance, message: "Konum uygun değil" }), {
               status: 403,
               headers: { "Content-Type": "application/json", ...corsHeaders },
             });
@@ -142,12 +159,19 @@ Deno.serve(async (req) => {
           console.info("Location check skipped: teacher location or student location not available");
         }
       } else {
-        // If no active QR found, still allow for dev. Comment next line to enforce.
-        // return new Response(JSON.stringify({ ok: false, error: "invalid_qr" }), { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
+        // No active QR found
+        console.info("No active QR code found for this course and week");
+        return new Response(JSON.stringify({ ok: false, error: "invalid_qr", message: "QR kod geçersiz veya aktif değil" }), {
+          status: 404,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
       }
     } catch (err) {
       console.error("Error checking QR or location:", err);
-      // Continue without location check if there's an error
+      return new Response(JSON.stringify({ ok: false, error: "database_error", message: "QR kod kontrolü sırasında hata oluştu" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     }
 
     // Enrollment check: ensure student belongs to a class that has this course
@@ -197,52 +221,143 @@ Deno.serve(async (req) => {
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
-    const dupUrl = `${supabaseUrl}/rest/v1/attendances?select=id&course_id=eq.${course_id}&week_number=eq.${week_number}&student_id=eq.${studentIdForDuplicate}`;
+    // Get sessions associated with this QR code
+    let sessionNumbers: number[] = [];
+    if (qrCodeId) {
+      try {
+        const sessionsUrl = `${supabaseUrl}/rest/v1/course_weekly_sessions?select=session_number&course_id=eq.${course_id}&week_number=eq.${week_number}&qr_code_id=eq.${qrCodeId}`;
+        const sessionsResp = await fetch(sessionsUrl, {
+          headers: { apikey: apiKey, Authorization: `Bearer ${apiKey}`, Accept: "application/json" },
+        });
+        const sessionsData = await sessionsResp.json();
+        console.info(`Fetched sessions for QR ${qrCodeId}:`, sessionsData);
+        if (Array.isArray(sessionsData) && sessionsData.length > 0) {
+          sessionNumbers = sessionsData.map((s: any) => s.session_number);
+          console.info(`Found ${sessionNumbers.length} session(s) for this QR code:`, sessionNumbers);
+        } else {
+          console.info(`No sessions found for QR ${qrCodeId}, will use default`);
+        }
+      } catch (err) {
+        console.error("Error fetching sessions:", err);
+        // Continue with default behavior (single attendance) if session fetch fails
+      }
+    } else {
+      console.info(`No qrCodeId found, will use default session`);
+    }
+
+    // If no sessions found, default to single attendance (backward compatibility)
+    if (sessionNumbers.length === 0) {
+      sessionNumbers = [1]; // Default to session 1
+      console.info(`Using default session number: 1`);
+    }
+
+    // Check for duplicate attendance for any of the sessions
+    const dupUrl = `${supabaseUrl}/rest/v1/attendances?select=id,session_number&course_id=eq.${course_id}&week_number=eq.${week_number}&student_id=eq.${studentIdForDuplicate}`;
     const dupResp = await fetch(dupUrl, {
       headers: { apikey: apiKey, Authorization: `Bearer ${apiKey}`, Accept: "application/json" },
     });
     const dupData = await dupResp.json();
+    console.info(`Checking duplicates: found ${Array.isArray(dupData) ? dupData.length : 0} existing attendance record(s)`);
     if (Array.isArray(dupData) && dupData.length > 0) {
-      return new Response(JSON.stringify({ ok: true, message: "already_attended" }), {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      // Separate existing sessions by NULL and non-NULL
+      const existingSessionsWithNumber = dupData.map((a: any) => a.session_number).filter((n: any) => n != null);
+      const hasNullSession = dupData.some((a: any) => a.session_number == null);
+      
+      console.info(`Existing sessions with number: ${existingSessionsWithNumber.join(", ") || "none"}`);
+      console.info(`Has NULL session: ${hasNullSession}`);
+      console.info(`New QR session numbers: ${sessionNumbers.join(", ")}`);
+      
+      // If new QR has session numbers, check only against existing sessions with numbers
+      // If old record has NULL session_number, it's a legacy record and shouldn't block new session-based attendance
+      if (sessionNumbers.length > 0 && existingSessionsWithNumber.length > 0) {
+        const allSessionsAttended = sessionNumbers.every(sn => existingSessionsWithNumber.includes(sn));
+        if (allSessionsAttended) {
+          console.info(`All sessions already attended: ${sessionNumbers.join(", ")}`);
+          return new Response(JSON.stringify({ ok: true, message: "already_attended", sessions: existingSessionsWithNumber }), {
+            status: 200,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          });
+        } else {
+          const missingSessions = sessionNumbers.filter(sn => !existingSessionsWithNumber.includes(sn));
+          console.info(`Some sessions not yet attended: ${missingSessions.join(", ")}`);
+        }
+      } else if (sessionNumbers.length === 0 && hasNullSession) {
+        // If new QR has no session numbers (legacy) and old record has NULL, it's duplicate
+        console.info("Legacy QR and legacy attendance record - duplicate");
+        return new Response(JSON.stringify({ ok: true, message: "already_attended", sessions: [] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      } else if (hasNullSession && sessionNumbers.length > 0) {
+        // Old record has NULL session_number (legacy), new QR has session numbers - allow it
+        console.info("Legacy attendance record found (session_number=NULL), allowing new session-based attendance");
+      }
     }
 
-    // Insert attendance with location if available
+    // Insert attendance records for each session
     const insertUrl = `${supabaseUrl}/rest/v1/attendances`;
-    const payload: any = {
-      course_id,
-      week_number,
-      student_id: studentIdForDuplicate,
-      marked_at: new Date().toISOString(),
-      method: "qr",
-    };
-    
-    // Add student location if available
-    if (student_latitude != null && student_longitude != null) {
-      payload.student_latitude = student_latitude;
-      payload.student_longitude = student_longitude;
+    const markedAt = new Date().toISOString();
+    const attendanceRecords: Array<{ session_number: number; success: boolean }> = [];
+
+    for (const sessionNumber of sessionNumbers) {
+      const payload: any = {
+        course_id,
+        week_number,
+        session_number: sessionNumber,
+        student_id: studentIdForDuplicate,
+        marked_at: markedAt,
+        method: "qr",
+      };
+      
+      // Add student location if available
+      if (student_latitude != null && student_longitude != null) {
+        payload.student_latitude = student_latitude;
+        payload.student_longitude = student_longitude;
+      }
+
+      console.info(`Attempting to insert attendance for session ${sessionNumber}:`, JSON.stringify(payload, null, 2));
+
+      const insertResp = await fetch(insertUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: apiKey,
+          Authorization: `Bearer ${apiKey}`,
+          Prefer: "return=representation",
+        },
+        body: JSON.stringify(payload),
+      });
+      const insertData = await insertResp.json();
+      
+      console.info(`Insert response for session ${sessionNumber}: status=${insertResp.status}, data=`, JSON.stringify(insertData, null, 2));
+      
+      if (!insertResp.ok) {
+        // If duplicate error (23505), skip this session
+        if ((insertData as any).code === "23505") {
+          console.info(`Session ${sessionNumber} already attended (duplicate), skipping`);
+          continue;
+        }
+        console.error(`Error inserting attendance for session ${sessionNumber}:`, JSON.stringify(insertData, null, 2));
+        // Continue with other sessions even if one fails
+      } else {
+        console.info(`Successfully inserted attendance for session ${sessionNumber}`);
+        attendanceRecords.push({ session_number: sessionNumber, success: true });
+      }
     }
-    const insertResp = await fetch(insertUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: apiKey,
-        Authorization: `Bearer ${apiKey}`,
-        Prefer: "return=representation",
-      },
-      body: JSON.stringify(payload),
-    });
-    const insertData = await insertResp.json();
-    if (!insertResp.ok) {
-      return new Response(JSON.stringify({ ok: false, error: "insert_failed", details: insertData }), {
-        status: 500,
+
+    if (attendanceRecords.length === 0) {
+      return new Response(JSON.stringify({ ok: false, error: "no_attendance_inserted", message: "Tüm oturumlar için yoklama zaten alınmış olabilir" }), {
+        status: 409,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
 
-    return new Response(JSON.stringify({ ok: true }), {
+    return new Response(JSON.stringify({ 
+      ok: true, 
+      sessions_attended: attendanceRecords.length,
+      total_sessions: sessionNumbers.length,
+      sessions: attendanceRecords.map(r => r.session_number)
+    }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
@@ -361,3 +476,4 @@ Deno.serve(async (req) => {
 
   return jsonResponse(200, { ok: true });
 });
+

@@ -6,6 +6,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
@@ -41,6 +42,9 @@ public final class ActivityTeacherBinding implements ViewBinding {
   public final ImageView ivQRCode;
 
   @NonNull
+  public final LinearLayout llSessionsContainer;
+
+  @NonNull
   public final ProgressBar progressBar;
 
   @NonNull
@@ -71,6 +75,9 @@ public final class ActivityTeacherBinding implements ViewBinding {
   public final TextView tvCountdown;
 
   @NonNull
+  public final TextView tvSessionsInfo;
+
+  @NonNull
   public final TextView tvStatus;
 
   @NonNull
@@ -79,16 +86,18 @@ public final class ActivityTeacherBinding implements ViewBinding {
   private ActivityTeacherBinding(@NonNull ScrollView rootView, @NonNull Button btnGenerateQR,
       @NonNull Button btnLogout, @NonNull Button btnStopAttendance,
       @NonNull Button btnViewAttendance, @NonNull ImageView ivQRCode,
-      @NonNull ProgressBar progressBar, @NonNull RadioButton rb10min, @NonNull RadioButton rb15min,
-      @NonNull RadioButton rb30min, @NonNull RadioButton rb5min, @NonNull RadioButton rb60min,
-      @NonNull RadioGroup rgDuration, @NonNull Spinner spinnerCourse, @NonNull Spinner spinnerWeek,
-      @NonNull TextView tvCountdown, @NonNull TextView tvStatus, @NonNull TextView tvWelcome) {
+      @NonNull LinearLayout llSessionsContainer, @NonNull ProgressBar progressBar,
+      @NonNull RadioButton rb10min, @NonNull RadioButton rb15min, @NonNull RadioButton rb30min,
+      @NonNull RadioButton rb5min, @NonNull RadioButton rb60min, @NonNull RadioGroup rgDuration,
+      @NonNull Spinner spinnerCourse, @NonNull Spinner spinnerWeek, @NonNull TextView tvCountdown,
+      @NonNull TextView tvSessionsInfo, @NonNull TextView tvStatus, @NonNull TextView tvWelcome) {
     this.rootView = rootView;
     this.btnGenerateQR = btnGenerateQR;
     this.btnLogout = btnLogout;
     this.btnStopAttendance = btnStopAttendance;
     this.btnViewAttendance = btnViewAttendance;
     this.ivQRCode = ivQRCode;
+    this.llSessionsContainer = llSessionsContainer;
     this.progressBar = progressBar;
     this.rb10min = rb10min;
     this.rb15min = rb15min;
@@ -99,6 +108,7 @@ public final class ActivityTeacherBinding implements ViewBinding {
     this.spinnerCourse = spinnerCourse;
     this.spinnerWeek = spinnerWeek;
     this.tvCountdown = tvCountdown;
+    this.tvSessionsInfo = tvSessionsInfo;
     this.tvStatus = tvStatus;
     this.tvWelcome = tvWelcome;
   }
@@ -157,6 +167,12 @@ public final class ActivityTeacherBinding implements ViewBinding {
       id = R.id.ivQRCode;
       ImageView ivQRCode = ViewBindings.findChildViewById(rootView, id);
       if (ivQRCode == null) {
+        break missingId;
+      }
+
+      id = R.id.llSessionsContainer;
+      LinearLayout llSessionsContainer = ViewBindings.findChildViewById(rootView, id);
+      if (llSessionsContainer == null) {
         break missingId;
       }
 
@@ -220,6 +236,12 @@ public final class ActivityTeacherBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.tvSessionsInfo;
+      TextView tvSessionsInfo = ViewBindings.findChildViewById(rootView, id);
+      if (tvSessionsInfo == null) {
+        break missingId;
+      }
+
       id = R.id.tvStatus;
       TextView tvStatus = ViewBindings.findChildViewById(rootView, id);
       if (tvStatus == null) {
@@ -233,9 +255,9 @@ public final class ActivityTeacherBinding implements ViewBinding {
       }
 
       return new ActivityTeacherBinding((ScrollView) rootView, btnGenerateQR, btnLogout,
-          btnStopAttendance, btnViewAttendance, ivQRCode, progressBar, rb10min, rb15min, rb30min,
-          rb5min, rb60min, rgDuration, spinnerCourse, spinnerWeek, tvCountdown, tvStatus,
-          tvWelcome);
+          btnStopAttendance, btnViewAttendance, ivQRCode, llSessionsContainer, progressBar, rb10min,
+          rb15min, rb30min, rb5min, rb60min, rgDuration, spinnerCourse, spinnerWeek, tvCountdown,
+          tvSessionsInfo, tvStatus, tvWelcome);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

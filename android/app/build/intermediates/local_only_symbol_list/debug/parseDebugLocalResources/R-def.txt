@@ -82,6 +82,7 @@ id layoutStudentLogin
 id layoutTeacherLogin
 id layout_attendance
 id llAttendanceInfo
+id llSessionsContainer
 id previewView
 id progress
 id progressBar
@@ -112,6 +113,7 @@ id tvForgotPassword
 id tvNoWeeks
 id tvRoleSubtitle
 id tvRoleTitle
+id tvSessionsInfo
 id tvSignupLink
 id tvStatus
 id tvTeacherForgotPassword

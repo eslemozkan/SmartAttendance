@@ -26,7 +26,7 @@ class TeacherActivity : AppCompatActivity() {
     
     // Dynamic courses loaded from Supabase (fallback includes "Ders Yok")
     private var courses: List<Course> = listOf(
-        Course(id = 4, uuid = null, name = "Ders Yok", code = "", schedule = "")
+        Course(id = 4, name = "Ders Yok", code = "", schedule = "", weeklyHours = 2)
     )
     
     private val weeks = listOf(
@@ -48,6 +48,9 @@ class TeacherActivity : AppCompatActivity() {
     
     // Track which weeks have QR codes created
     private val qrCreatedWeeks = mutableSetOf<Pair<Int, Int>>() // (courseId, weekId)
+    
+    // Track selected sessions for QR code generation
+    private val selectedSessions = mutableListOf<Int>()
     
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -78,13 +81,8 @@ class TeacherActivity : AppCompatActivity() {
                     val id = row.courseId?.toInt() ?: return@mapNotNull null
                     val name = row.courseName ?: return@mapNotNull null
                     val code = row.courseCode ?: ""
-                    Course(
-                        id = id,
-                        uuid = row.courseId?.toString(),
-                        name = name,
-                        code = code,
-                        schedule = ""
-                    )
+                    val weeklyHours = row.weeklyHours ?: 2 // API'den gelen değer veya default 2
+                    Course(id = id, name = name, code = code, schedule = "", weeklyHours = weeklyHours)
                 }
                 if (mapped.isNotEmpty()) {
                     courses = mapped + courses.filter { it.id == 4 }
@@ -155,15 +153,34 @@ class TeacherActivity : AppCompatActivity() {
             // Default color (#424242) kullanılacak - daha açık gri
         )
         binding.spinnerWeek.adapter = weekAdapter
+        
+        binding.spinnerWeek.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
+                val selectedCourse = courses[binding.spinnerCourse.selectedItemPosition]
+                if (selectedCourse.id != 4) {
+                    loadWeeklySessions(selectedCourse.id.toLong(), weeks[position].id)
+                }
+            }
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+        }
     }
     
     private fun updateCourseInfo(course: Course) {
         if (course.id == 4) { // "Ders Yok" option
             binding.tvStatus.text = "Bu hafta ders yapılmayacak"
             binding.btnGenerateQR.isEnabled = false
+            binding.llSessionsContainer.visibility = android.view.View.GONE
+            binding.tvSessionsInfo.visibility = android.view.View.GONE
         } else {
             binding.tvStatus.text = "${course.name} - ${course.schedule}"
-            binding.btnGenerateQR.isEnabled = true
+            binding.btnGenerateQR.isEnabled = false // Oturum seçilene kadar devre dışı
+            binding.llSessionsContainer.visibility = android.view.View.VISIBLE
+            binding.tvSessionsInfo.visibility = android.view.View.VISIBLE
+            // Seçili hafta için oturumları yükle
+            val selectedWeekPosition = binding.spinnerWeek.selectedItemPosition
+            if (selectedWeekPosition >= 0) {
+                loadWeeklySessions(course.id.toLong(), weeks[selectedWeekPosition].id)
+            }
         }
     }
     
@@ -253,6 +270,77 @@ class TeacherActivity : AppCompatActivity() {
         finish()
     }
     
+    private fun loadWeeklySessions(courseId: Long, weekNumber: Int) {
+        binding.progressBar.visibility = android.view.View.VISIBLE
+        selectedSessions.clear()
+        binding.llSessionsContainer.removeAllViews()
+        
+        lifecycleScope.launch {
+            try {
+                val response = withContext(Dispatchers.IO) {
+                    apiService.getWeeklySessions(courseId, weekNumber)
+                }
+                
+                runOnUiThread {
+                    binding.progressBar.visibility = android.view.View.GONE
+                    
+                    if (response == null || response.availableSessions.isEmpty()) {
+                        binding.tvSessionsInfo.text = "Bu hafta için oturum bulunamadı"
+                        binding.btnGenerateQR.isEnabled = false
+                        return@runOnUiThread
+                    }
+                    
+                    // Oturum bilgilerini göster
+                    val completedText = if (response.completedSessions > 0) {
+                        " (${response.completedSessions}/${response.totalSessions} tamamlandı)"
+                    } else {
+                        ""
+                    }
+                    binding.tvSessionsInfo.text = "Seçili hafta için ${response.totalSessions} oturum var$completedText. Lütfen QR kod için oturum seçin:"
+                    
+                    // Checkbox'ları oluştur
+                    response.availableSessions.forEach { session ->
+                        val checkBox = android.widget.CheckBox(this@TeacherActivity).apply {
+                            text = "${session.sessionNumber}. Oturum"
+                            if (session.isCompleted) {
+                                text = "${session.sessionNumber}. Oturum (Tamamlandı)"
+                                isEnabled = false
+                                setTextColor(android.graphics.Color.GRAY)
+                            } else {
+                                setTextColor(ContextCompat.getColor(this@TeacherActivity, android.R.color.black))
+                            }
+                            tag = session.sessionNumber
+                            setOnCheckedChangeListener { _, isChecked ->
+                                val sessionNum = tag as Int
+                                if (isChecked) {
+                                    if (!selectedSessions.contains(sessionNum)) {
+                                        selectedSessions.add(sessionNum)
+                                    }
+                                } else {
+                                    selectedSessions.remove(sessionNum)
+                                }
+                                updateGenerateQRButtonState()
+                            }
+                        }
+                        binding.llSessionsContainer.addView(checkBox)
+                    }
+                    
+                    updateGenerateQRButtonState()
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    binding.progressBar.visibility = android.view.View.GONE
+                    binding.tvSessionsInfo.text = "Oturumlar yüklenirken hata: ${e.message}"
+                    Toast.makeText(this@TeacherActivity, "Oturumlar yüklenirken hata: ${e.message}", Toast.LENGTH_LONG).show()
+                    binding.btnGenerateQR.isEnabled = false
+                }
+            }
+        }
+    }
+    
+    private fun updateGenerateQRButtonState() {
+        binding.btnGenerateQR.isEnabled = selectedSessions.isNotEmpty()
+    }
 
     private fun generateQRCode() {
         val selectedCourse = courses[binding.spinnerCourse.selectedItemPosition]
@@ -268,6 +356,12 @@ class TeacherActivity : AppCompatActivity() {
         // Check if it's "Ders Yok" option
         if (selectedCourse.id == 4) {
             Toast.makeText(this, "Bu hafta ders yapılmayacak", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        // Check if sessions are selected
+        if (selectedSessions.isEmpty()) {
+            Toast.makeText(this, "Lütfen en az bir ders oturumu seçin", Toast.LENGTH_SHORT).show()
             return
         }
         
@@ -290,7 +384,8 @@ class TeacherActivity : AppCompatActivity() {
                     apiService.createQRCode(
                         courseId = selectedCourse.id.toLong(),
                         weekNumber = selectedWeek.id,
-                        expireAfterMinutes = duration
+                        expireAfterMinutes = duration,
+                        sessionNumbers = selectedSessions
                     )
                 }
 
@@ -302,12 +397,14 @@ class TeacherActivity : AppCompatActivity() {
                 val qrData = response.qr
 
                 // Create JSON string for QR code matching server schema
+                val teacherLatStr = if (qrData.teacherLatitude != null) ""","teacher_latitude": ${qrData.teacherLatitude}""" else ""
+                val teacherLonStr = if (qrData.teacherLongitude != null) ""","teacher_longitude": ${qrData.teacherLongitude}""" else ""
                 val qrJson = """
                     {
                         "course_id": ${qrData.courseId},
                         "week_number": ${qrData.weekNumber},
                         "created_at": "${qrData.createdAt}",
-                        "expire_after": ${qrData.expireAfter}
+                        "expire_after": ${qrData.expireAfter}$teacherLatStr$teacherLonStr
                     }
                 """.trimIndent()
 
@@ -315,15 +412,22 @@ class TeacherActivity : AppCompatActivity() {
                 qrCreatedWeeks.add(weekKey)
 
                 // Update status with course and week info
-                binding.tvStatus.text = "${selectedCourse.name} - ${selectedWeek.name} için QR kod oluşturuldu!"
+                val sessionsText = if (selectedSessions.size == 1) {
+                    "${selectedSessions.first()}. oturum"
+                } else {
+                    "${selectedSessions.sorted().joinToString(", ")}. oturumlar"
+                }
+                binding.tvStatus.text = "${selectedCourse.name} - ${selectedWeek.name} için QR kod oluşturuldu! ($sessionsText, $duration dakika geçerli)"
 
                 val qrBitmap = generateQRBitmap(qrJson)
                 binding.ivQRCode.setImageBitmap(qrBitmap)
-                binding.tvStatus.text = "${selectedCourse.name} - ${selectedWeek.name} için QR kod oluşturuldu! ($duration dakika geçerli)"
                 binding.btnStopAttendance.isEnabled = true
 
                 // Start countdown
                 startCountdown(duration * 60)
+                
+                // Reload sessions to update UI (completed sessions will be disabled)
+                loadWeeklySessions(selectedCourse.id.toLong(), selectedWeek.id)
 
             } catch (e: Exception) {
                 Toast.makeText(this@TeacherActivity, "QR oluşturma hatası: ${e.message}", Toast.LENGTH_LONG).show()

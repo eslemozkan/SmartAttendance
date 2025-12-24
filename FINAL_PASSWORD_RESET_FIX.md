@@ -53,3 +53,6 @@ Supabase Dashboard'da **Site URL** ayarını web sayfası URL'ine ayarlayın:
 
 
 
+
+
+

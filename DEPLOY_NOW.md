@@ -58,3 +58,6 @@ Browser console'u açın (F12) ve şunu kontrol edin:
 
 
 
+
+
+

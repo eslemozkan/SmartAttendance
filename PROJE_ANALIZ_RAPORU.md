@@ -401,3 +401,6 @@ Proje **temel özellikler açısından çalışıyor** ancak **eksik özellikler
 
 
 
+
+
+

@@ -102,6 +102,39 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:text="Ders Seçimi (Haftalık Saatler):"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/academic_text_primary"
+                android:layout_marginBottom="8dp"/>
+
+            <TextView
+                android:id="@+id/tvSessionsInfo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Ders ve hafta seçin, işlenmemiş dersler görünecek"
+                android:textSize="14sp"
+                android:textColor="@color/academic_text_secondary"
+                android:layout_marginBottom="12dp"/>
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:maxHeight="200dp"
+                android:layout_marginBottom="16dp">
+
+                <LinearLayout
+                    android:id="@+id/llSessionsContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="8dp"/>
+
+            </ScrollView>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:text="Süre Seçimi:"
                 android:textSize="16sp"
                 android:textColor="@color/academic_text_primary"
